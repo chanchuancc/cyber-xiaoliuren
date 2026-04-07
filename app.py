@@ -2,10 +2,60 @@ import streamlit as st
 from borax.calendars.lunardate import LunarDate
 import datetime
 import time
-import random
+import json
+import os
 
 # --- Configuration & Styling (Cyber Zen) ---
 st.set_page_config(page_title="小六壬 · 寂", page_icon="⛩️", layout="centered")
+
+# Persistence for IP Rate Limiting
+STORAGE_FILE = "divinations.json"
+
+def get_remote_ip():
+    """Attempt to get remote IP from headers"""
+    try:
+        # Standard Streamlit Cloud header
+        return st.context.headers.get("X-Forwarded-For", "127.0.0.1").split(",")[0]
+    except:
+        return "127.0.0.1"
+
+def check_rate_limit(ip):
+    """Check if IP has divined in the last hour"""
+    if not os.path.exists(STORAGE_FILE):
+        return True, 0
+    
+    try:
+        with open(STORAGE_FILE, "r") as f:
+            data = json.load(f)
+    except:
+        data = {}
+
+    last_time = data.get(ip)
+    if last_time:
+        now = time.time()
+        elapsed = now - last_time
+        if elapsed < 3600:
+            return False, int(3600 - elapsed)
+    return True, 0
+
+def update_rate_limit(ip):
+    """Update the last divination time for an IP"""
+    if os.path.exists(STORAGE_FILE):
+        try:
+            with open(STORAGE_FILE, "r") as f:
+                data = json.load(f)
+        except:
+            data = {}
+    else:
+        data = {}
+    
+    data[ip] = time.time()
+    # Basic cleanup: remove entries older than 2 hours to keep file small
+    now = time.time()
+    data = {k: v for k, v in data.items() if now - v < 7200}
+    
+    with open(STORAGE_FILE, "w") as f:
+        json.dump(data, f)
 
 cyber_zen_css = """
 <style>
@@ -19,21 +69,28 @@ cyber_zen_css = """
     .stApp {
         background-color: #050505;
     }
+    .main-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 70vh;
+        text-align: center;
+    }
     h1, h2, h3 {
         color: #00F2FF;
         letter-spacing: 0.15em;
         text-align: center;
         text-shadow: 0 0 10px rgba(0,242,255,0.3);
     }
-    /* Robust Button Centering */
-    .stButton {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        width: 100%;
-        margin: 2rem 0;
+    .ritual-hint {
+        color: #666;
+        font-size: 0.9rem;
+        margin-bottom: 2rem;
+        letter-spacing: 0.1em;
+        font-style: italic;
     }
-    .stButton > button {
+    .stButton>button {
         background-color: rgba(0,242,255,0.05);
         color: #00F2FF;
         border: 1px solid #00F2FF;
@@ -41,257 +98,226 @@ cyber_zen_css = """
         padding: 0.8rem 3.5rem;
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         text-transform: uppercase;
-        letter-spacing: 0.4em;
+        letter-spacing: 0.3em;
         font-size: 1.1rem;
-        font-weight: 300;
-        cursor: pointer;
     }
-    .stButton > button:hover {
+    .stButton>button:hover {
         color: #fff;
         border-color: #fff;
         background-color: rgba(0,242,255,0.2);
-        box-shadow: 0 0 25px rgba(0,242,255,0.6);
-        transform: scale(1.02);
+        box-shadow: 0 0 20px rgba(0,242,255,0.5);
     }
     .result-card {
-        background: rgba(10, 10, 10, 0.98);
-        border: 1px solid rgba(0,242,255,0.15);
-        backdrop-filter: blur(20px);
+        background: rgba(10, 10, 10, 0.95);
+        border: 1px solid rgba(0,242,255,0.2);
+        backdrop-filter: blur(12px);
         padding: 3rem;
-        margin-top: 1rem;
+        margin-top: 2rem;
         animation: emerge 1.5s cubic-bezier(0.23, 1, 0.32, 1);
         border-radius: 4px;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.7);
+        max-width: 800px;
+        margin-left: auto;
+        margin-right: auto;
     }
     .formula {
         font-family: 'Courier New', Courier, monospace;
-        color: #00F2FF;
-        font-size: 0.85rem;
+        color: #444;
+        font-size: 0.8rem;
         text-align: center;
         margin-bottom: 2rem;
-        opacity: 0.5;
-        letter-spacing: 0.1em;
+        opacity: 0.6;
     }
     .gua-name {
-        font-size: 5.5rem;
+        font-size: 5rem;
         font-weight: 700;
         color: #00F2FF;
         text-align: center;
         margin: 1rem 0;
-        text-shadow: 0 0 30px rgba(0,242,255,0.7);
-        animation: pulse 4s infinite ease-in-out;
-        letter-spacing: 0.2em;
+        text-shadow: 0 0 30px rgba(0,242,255,0.6);
     }
-    .gua-desc-box {
-        border-top: 1px solid rgba(255,255,255,0.05);
-        padding-top: 2rem;
-        margin-top: 2rem;
+    .gua-status {
+        text-align: center; 
+        color: #00F2FF; 
+        font-size: 0.9rem; 
+        margin-bottom: 2rem; 
+        font-family: 'Courier New', monospace;
+        letter-spacing: 0.1em;
     }
-    .gua-desc {
-        color: #bbb;
-        line-height: 2;
+    .gua-content {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 2rem;
         text-align: left;
-        max-width: 580px;
-        margin: 0 auto;
-        letter-spacing: 0.05em;
-        font-size: 1rem;
+        border-top: 1px solid rgba(255,255,255,0.1);
+        padding-top: 2rem;
     }
-    .notice {
-        text-align: center;
-        color: #666;
-        font-size: 0.9rem;
-        margin: 2rem 0;
+    .section-title {
+        color: #555;
+        font-size: 0.7rem;
+        text-transform: uppercase;
         letter-spacing: 0.2em;
+        margin-bottom: 0.5rem;
+    }
+    .poem {
+        color: #ccc;
+        font-size: 1.2rem;
         line-height: 1.8;
-        font-style: italic;
+        letter-spacing: 0.1em;
+        border-left: 2px solid #00F2FF;
+        padding-left: 1.5rem;
+    }
+    .interpretation {
+        color: #999;
+        font-size: 1rem;
+        line-height: 1.8;
+    }
+    .advice {
+        color: #00F2FF;
+        font-size: 0.95rem;
+        opacity: 0.8;
+        background: rgba(0,242,255,0.05);
+        padding: 1rem;
+        border-radius: 2px;
     }
     @keyframes emerge {
-        from { opacity: 0; transform: scale(0.95) translateY(30px); filter: blur(20px); }
+        from { opacity: 0; transform: scale(0.98) translateY(30px); filter: blur(15px); }
         to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
     }
-    @keyframes pulse {
-        0%, 100% { opacity: 1; filter: drop-shadow(0 0 15px rgba(0,242,255,0.5)); }
-        50% { opacity: 0.8; filter: drop-shadow(0 0 35px rgba(0,242,255,0.8)); }
-    }
-    /* Hide default streamlit elements */
+    /* Hide Streamlit UI */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    [data-testid="stSidebar"] {display: none;}
 </style>
 """
 st.markdown(cyber_zen_css, unsafe_allow_html=True)
 
-# --- Global IP Cache (Persistent across sessions in the same process) ---
-@st.cache_resource
-def get_ip_cache():
-    return {}
-
-ip_cache = get_ip_cache()
-
-# --- Data & Logic ---
-
+# --- Enhanced GUA DATA ---
 GUA_DATA = {
     1: {
-        "name": "大安",
-        "status": "STATUS: STABLE / 200 OK",
-        "poem": "大安事事昌，求财在坤方。失物去不远，宅舍保安康。<br>行人身未动，病者无妨碍。求谋甚周全，官事总成双。",
-        "interpretation": "身不动时，五行属木，方位东方。此卦主【极稳】，当下万事顺遂。如同底层架构经过严密压力测试，运行如丝般顺滑。此时宜守正不阿，静观其变，不必急于重构。求财利东方，谋事皆可成。",
-        "advice": "【天机建议】：保持现状，无需激进干预。系统处于最优负载状态。"
+        "name": "大安", 
+        "status": "STATUS: STABLE / 200 OK", 
+        "poem": "大安事事昌，求财在东方。<br>失物去不远，宅舍保安康。<br>行人身未动，病者主无妨。<br>将军回旧舍，官事只宜强。", 
+        "interpretation": "身不动时，五行属木。此卦为极稳之象。如底层架构之固，如程序运行之顺。当下万事皆稳，虽无剧烈爆发，但胜在长久。此时最忌心浮气躁，妄动生灾。", 
+        "advice": "宜：静修、守旧、固本、签约。忌：辞职、远行、突围。"
     },
     2: {
-        "name": "留连",
-        "status": "STATUS: PENDING / PROCESSING",
-        "poem": "留连事难成，求谋日未明。官事只宜缓，去者未回程。<br>失物南方见，急讨方称心。更需防口舌，人事且宽心。",
-        "interpretation": "人未归时，五行属水，方位北方。此卦主【延滞】，如异步任务进入死循环，或带宽遭遇瓶颈。事多纠缠，难觅定论。当下不宜强推更新，需耐心排查逻辑漏洞，等待数据包完整回传。此时宜缓不宜急。",
-        "advice": "【天机建议】：增加超时等待（Timeout），反复校验输入参数。耐心是唯一的解药。"
+        "name": "留连", 
+        "status": "STATUS: PENDING / PROCESSING", 
+        "poem": "留连事难成，求谋日未明。<br>官事只宜缓，去者未回程。<br>失物南方见，急讨方称心。<br>更需防口舌，人口且平平。", 
+        "interpretation": "人未归时，五行属水。此卦为延宕之象。如同数据传输阻塞，逻辑陷入回旋。凡事多有阻滞，难以一蹴而就。此时需调整呼吸，在等待中寻找破绽，不可强攻。", 
+        "advice": "宜：复盘、查漏、低调、等待。忌：激进、担保、求快、争辩。"
     },
     3: {
-        "name": "速喜",
-        "status": "STATUS: INSTANT / PUSH",
-        "poem": "速喜喜来临，求财向南行。失物午未申，逢人路上寻。<br>官事有贵人，病者要放心。田宅多吉庆，行人有回音。",
-        "interpretation": "人即至时，五行属火，方位南方。此卦主【迅捷】，如同高优先级（High Priority）的通知瞬间推送。灵感爆发，机会稍纵即逝。当下宜果断执行，代码一把过，Bug 自动消除。此时不宜犹豫，宜全速上线。",
-        "advice": "【天机建议】：立即 Commit！当前的直觉是最高等级的生产力。"
+        "name": "速喜", 
+        "status": "STATUS: INSTANT / PUSH", 
+        "poem": "速喜喜来临，求财向南行。<br>失物午未申，逢人路上寻。<br>官事有贵人，病者得安宁。<br>田宅六畜吉，行人有信音。", 
+        "interpretation": "人即至时，五行属火。此卦为速发之象。好比高优先级的推送提醒，灵感瞬间迸发，好运正加速赶来。此时应借势而为，果断扣动扳机，把握这转瞬即逝的窗口期。", 
+        "advice": "宜：表白、公关、短线交易、社交。忌：犹豫、拖延、拒绝机会。"
     },
     4: {
-        "name": "赤口",
-        "status": "STATUS: CONFLICT / 403 FORBIDDEN",
-        "poem": "赤口主口舌，官事且紧防。失物急去寻，行人有惊慌。<br>鸡犬多作怪，病者要预防。更须防咒诅，慎重保平安。",
-        "interpretation": "官事凶时，五行属金，方位西方。此卦主【纷争】，如遇到严重的协议冲突或防火墙拦截。警惕代码中的逻辑炸弹或外部攻击。此时慎言慎行，防范口舌是非，如遇到 PR 冲突，请务必保持心态平和。",
-        "advice": "【天机建议】：开启全量日志审计。加强安全防护，暂时进入沙盒模式。"
+        "name": "赤口", 
+        "status": "STATUS: CONFLICT / 403 FORBIDDEN", 
+        "poem": "赤口主口舌，官非切要防。<br>失物急去寻，行人有惊慌。<br>鸡犬多作怪，病者出西方。<br>更需防咀咒，恐怕染瘟皇。", 
+        "interpretation": "官事凶时，五行属金。此卦为纷争之象。警惕防火墙被攻破或通信协议冲突。外环境充满变量与敌意，极易引发口角、损失或突发阻碍。此时当收敛锋芒，深挖战壕。", 
+        "advice": "宜：自省、防守、规避、闭关。忌：对抗、创业、远行、争理。"
     },
     5: {
-        "name": "小吉",
-        "status": "STATUS: OPTIMIZED / SUCCESS",
-        "poem": "小吉最吉昌，路上好商量。阴人来报喜，失物在坤方。<br>行人立刻至，交情甚相宜。求谋皆得利，病者渐安痊。",
-        "interpretation": "人来喜时，五行属木，方位东方。此卦主【圆满】，如代码经过精妙重构，资源占用率降至最低。虽非泼天富贵，但胜在和合平衡。有贵人（第三方优质库）相助，系统鲁棒性极佳。事有转机，结果可期。",
-        "advice": "【天机建议】：可以小步快跑，逐步扩大流量。这是一种可持续的成功状态。"
+        "name": "小吉", 
+        "status": "STATUS: OPTIMIZED / SUCCESS", 
+        "poem": "小吉最吉昌，路上好商量。<br>阴人来报喜，失物在坤方。<br>行人立即至，交易甚辉煌。<br>凡事皆和合，病者祷上苍。", 
+        "interpretation": "人来喜时，五行属木。此卦为和合之象。如代码经过完美重构，系统资源调配得当。虽非宏大叙事，但贵在细节圆满，常有意外之喜（贵人相助）。是推进计划的黄金时刻。", 
+        "advice": "宜：合作、联姻、面试、发布新版。忌：独断、冷战、傲慢。"
     },
     0: {
-        "name": "空亡",
-        "status": "STATUS: VOID / 404 NOT FOUND",
-        "poem": "空亡事不祥，阴人多乖张。求财无利益，行人有灾殃。<br>失物寻不见，官事有刑伤。病者重难起，谋望尽落空。",
-        "interpretation": "音信稀时，五行属土，方位中央。此卦主【虚无】，连接已彻底断开，内存已完全溢出。当下不仅事难成，更需防范系统性风险。此时应彻底清空缓存，择日重新初始化，强求无益，不如入定静待。",
-        "advice": "【天机建议】：立即杀掉进程。清空心念，重新加载人生内核。"
+        "name": "空亡", 
+        "status": "STATUS: VOID / 404 NOT FOUND", 
+        "poem": "空亡事不祥，阴人多乖张。<br>求财无利益，行人有灾殃。<br>失物寻不见，官事有刑伤。<br>病人逢暗鬼，解禳保安康。", 
+        "interpretation": "音信稀时，五行属土。此卦为虚无之象。链接已断开，数据已溢出。此时不宜寄托希望，强求无果。宜彻底清空缓存，放空大脑，等待系统重置后的契机。", 
+        "advice": "宜：冥想、休息、放弃执念、清理旧物。忌：投资、承诺、寻找失物。"
     }
 }
 
-def get_shichen_index(hour):
-    if hour >= 23 or hour < 1:
-        return 1
-    return (hour + 1) // 2 + 1
+# --- UI Logic ---
 
-def calculate_xiaoliuren(m, d, h):
-    return (m + d + h - 2) % 6
-
-# --- Helper for IP (Streamlit Cloud Compatible) ---
-def get_remote_ip():
-    try:
-        # For local dev
-        from streamlit.web.server.websocket_headers import _get_websocket_headers
-        headers = _get_websocket_headers()
-        if headers:
-            return headers.get("X-Forwarded-For", "local").split(",")[0]
-    except:
-        pass
-    return "unknown"
-
-# --- UI Layout ---
-
+st.markdown('<div class="main-container">', unsafe_allow_html=True)
 st.markdown("### 「 寂 · JÌ 」")
-st.markdown("## 赛博禅龛 · 小六壬占卜")
+st.markdown("## 赛博禅龛 · 小六壬先知")
+st.markdown('<div class="ritual-hint">请屏息凝神，于心中默念所求之事...</div>', unsafe_allow_html=True)
 
-st.markdown('<div class="notice">“起卦前请入定三秒，默念所求之事。<br>一念起，万法生；心诚则灵，妄求无益。”</div>', unsafe_allow_html=True)
-
-# IP Rate Limit Logic
-client_ip = get_remote_ip()
-last_divination_time = ip_cache.get(client_ip)
-can_divine = True
-wait_message = ""
-
-if last_divination_time:
-    time_since = time.time() - last_divination_time
-    if time_since < 3600:
-        can_divine = False
-        remaining_mins = int((3600 - time_since) // 60)
-        wait_message = f"「机缘未到」：天机不可频泄。请在 {remaining_mins} 分钟后重新起卦。"
-
-# Center Button Container
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    divine_button = st.button("起 卦")
-
-if divine_button:
-    if not can_divine:
-        st.toast(wait_message, icon="⏳")
-        st.error(wait_message)
+if st.button("感 应 天 机"):
+    ip = get_remote_ip()
+    allowed, remaining = check_rate_limit(ip)
+    
+    if not allowed:
+        st.toast(f"机缘未到。天机不可频泄，请于 {remaining // 60} 分钟后再试。", icon="⏳")
     else:
-        # Record time
-        ip_cache[client_ip] = time.time()
-        
-        # --- Complex Animation ---
-        placeholder = st.empty()
-        anim_steps = [
-            (">>> [BOOT] 初始化赛博禅龛...", "01"),
-            (">>> [SENSE] 捕捉当前天道频率...", "0A"),
-            (">>> [LUNAR] 定位农历月令周期 (M)...", "FF"),
-            (">>> [SOLAR] 锁定日辰能量场 (D)...", "7E"),
-            (">>> [TIME] 映射十二时辰相位 (H)...", "C4"),
-            (">>> [KERNEL] 执行 O(1) 命运坍缩演算...", "32"),
-            (">>> [DECRYPT] 正在解密神谕加密包...", "B9"),
-            (">>> [SYNC] 正在同步因果链...", "88"),
-            (">>> [FINAL] 命运已就位。", "OK")
+        # Complex Animation Process
+        anim_placeholder = st.empty()
+        stages = [
+            ("📡 正在捕捉时空涟漪...", 0.6),
+            ("🌑 正在定位星历数据...", 0.8),
+            ("🕰️ 正在映射十二时辰...", 0.7),
+            ("⚡ 正在执行 O(1) 递归演算...", 1.2),
+            ("👁️ 正在解析神谕二进制码...", 0.9)
         ]
         
-        for step_text, hex_code in anim_steps:
-            with placeholder.container():
-                st.markdown(f'<div style="text-align: center; color: #333; font-family: monospace; font-size: 0.8rem; margin: 1rem 0;">{step_text}</div>', unsafe_allow_html=True)
-                # Matrix rain effect
-                matrix = " ".join([random.choice("0123456789ABCDEF") for _ in range(24)])
-                st.markdown(f'<div style="text-align: center; color: #111; font-family: monospace; font-size: 0.6rem; overflow: hidden; white-space: nowrap;">{matrix} <span style="color:#00F2FF;">{hex_code}</span> {matrix}</div>', unsafe_allow_html=True)
-                time.sleep(0.4)
+        for stage, duration in stages:
+            anim_placeholder.markdown(f"""
+            <div style="text-align: center; color: #00F2FF; font-family: monospace; font-size: 1.2rem; margin-top: 2rem;">
+                {stage}<br>
+                <span style="font-size: 0.8rem; color: #333;">{datetime.datetime.now().isoformat()}</span>
+            </div>
+            """, unsafe_allow_html=True)
+            time.sleep(duration)
         
-        placeholder.empty()
+        anim_placeholder.empty()
         
-        # --- Real Calculation ---
+        # Calculation Logic
         now = datetime.datetime.now()
         lunar = LunarDate.from_solar_date(now.year, now.month, now.day)
-        M, D = lunar.month, lunar.day
-        H = get_shichen_index(now.hour)
         
-        res_idx = calculate_xiaoliuren(M, D, H)
+        def get_shichen_index(hour):
+            if hour >= 23 or hour < 1: return 1
+            return (hour + 1) // 2 + 1
+            
+        M = lunar.month
+        D = lunar.day
+        H = get_shichen_index(now.hour)
+        res_idx = (M + D + H - 2) % 6
         gua = GUA_DATA[res_idx]
+        
+        update_rate_limit(ip)
+        
         shichen_names = ["", "子时", "丑时", "寅时", "卯时", "辰时", "巳时", "午时", "未时", "申时", "酉时", "戌时", "亥时"]
         
-        # --- Display Result ---
-        st.markdown('<div class="result-card">', unsafe_allow_html=True)
-        
+        # Display Result
         st.markdown(f"""
-        <div class="formula">
-            LOCAL_TIME: {now.strftime('%Y-%m-%d %H:%M:%S')}<br>
-            LUNAR_CAL: {lunar.strftime('%Y年%L%M月%D')} {shichen_names[H]}<br>
-            ALGO_TRACE: ({M} + {D} + {H} - 2) % 6 = {res_idx}
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown(f'<div class="gua-name">{gua["name"]}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div style="text-align: center; color: #00F2FF; font-size: 0.9rem; margin-bottom: 2.5rem; font-family: monospace; letter-spacing: 3px; font-weight: bold;">{gua["status"]}</div>', unsafe_allow_html=True)
-        
-        st.markdown(f"""
-        <div class="gua-desc-box">
-            <div class="gua-desc">
-                <span style="color: #666; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px;">[ 诗诀判词 ]</span><br>
-                <span style="color: #fff; font-size: 1.1rem; line-height: 2.2;">{gua["poem"]}</span><br><br>
-                <span style="color: #666; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px;">[ 深层解读 ]</span><br>
-                {gua["interpretation"]}<br><br>
-                <div style="border-left: 2px solid #00F2FF; padding-left: 1rem; margin-top: 1.5rem; color: #00F2FF; font-style: italic;">
-                    {gua["advice"]}
+        <div class="result-card">
+            <div class="formula">
+                PRECISION_TIME: {now.strftime('%Y-%m-%d %H:%M:%S')}<br>
+                LUNAR_MAPPING: {lunar.strftime('%Y年%L%M月%D')} {shichen_names[H]}<br>
+                ALGO_TRACE: ({M} + {D} + {H} - 2) % 6 = {res_idx}
+            </div>
+            <div class="gua-name">{gua["name"]}</div>
+            <div class="gua-status">{gua["status"]}</div>
+            <div class="gua-content">
+                <div>
+                    <div class="section-title">诗诀 Oracle Verse</div>
+                    <div class="poem">{gua["poem"]}</div>
+                </div>
+                <div>
+                    <div class="section-title">深层解读 Deep Interpretation</div>
+                    <div class="interpretation">{gua["interpretation"]}</div>
+                </div>
+                <div>
+                    <div class="section-title">行动建议 Cyber Advice</div>
+                    <div class="advice">{gua["advice"]}</div>
                 </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
 
+st.markdown('</div>', unsafe_allow_html=True)
 st.markdown("<br><br><br>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #1a1a1a; font-size: 0.7rem; letter-spacing: 4px;'>以此入定，静待笔墨</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #222; font-size: 0.7rem; letter-spacing: 0.3em;'>CODE IS THE NEW MANTRA · ALGORITHM IS THE OLD FATE</p>", unsafe_allow_html=True)
