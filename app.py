@@ -245,7 +245,12 @@ st.markdown("### 「 寂 · JÌ 」")
 st.markdown("## 赛博禅龛 · 小六壬先知")
 st.markdown('<div class="ritual-hint">请屏息凝神，于心中默念所求之事...</div>', unsafe_allow_html=True)
 
-if st.button("感 应 天 机"):
+# Centering the button with columns
+col1, col2, col3 = st.columns([1, 1, 1])
+with col2:
+    divine_trigger = st.button("感 应 天 机")
+
+if divine_trigger:
     ip = get_remote_ip()
     allowed, remaining = check_rate_limit(ip)
     
