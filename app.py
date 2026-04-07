@@ -4,32 +4,28 @@ import datetime
 import time
 import json
 import os
+import random
 
-# --- Configuration & Styling (Cyber Zen) ---
-st.set_page_config(page_title="小六壬 · 寂", page_icon="⛩️", layout="centered")
+# --- Configuration & Styling ---
+st.set_page_config(page_title="赛博禅龛", page_icon="⛩️", layout="centered")
 
 # Persistence for IP Rate Limiting
 STORAGE_FILE = "divinations.json"
 
 def get_remote_ip():
-    """Attempt to get remote IP from headers"""
     try:
-        # Standard Streamlit Cloud header
         return st.context.headers.get("X-Forwarded-For", "127.0.0.1").split(",")[0]
     except:
         return "127.0.0.1"
 
 def check_rate_limit(ip):
-    """Check if IP has divined in the last hour"""
     if not os.path.exists(STORAGE_FILE):
         return True, 0
-    
     try:
         with open(STORAGE_FILE, "r") as f:
             data = json.load(f)
     except:
         data = {}
-
     last_time = data.get(ip)
     if last_time:
         now = time.time()
@@ -39,7 +35,6 @@ def check_rate_limit(ip):
     return True, 0
 
 def update_rate_limit(ip):
-    """Update the last divination time for an IP"""
     if os.path.exists(STORAGE_FILE):
         try:
             with open(STORAGE_FILE, "r") as f:
@@ -48,12 +43,9 @@ def update_rate_limit(ip):
             data = {}
     else:
         data = {}
-    
     data[ip] = time.time()
-    # Basic cleanup: remove entries older than 2 hours to keep file small
     now = time.time()
     data = {k: v for k, v in data.items() if now - v < 7200}
-    
     with open(STORAGE_FILE, "w") as f:
         json.dump(data, f)
 
@@ -61,138 +53,152 @@ cyber_zen_css = """
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;700&display=swap');
 
-    body {
+    /* Global Overrides */
+    body, .stApp {
         background-color: #050505;
         color: #e0e0e0;
         font-family: 'Noto Serif SC', 'Microsoft YaHei', serif;
     }
-    .stApp {
-        background-color: #050505;
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+        max-width: 800px !important;
     }
-    .main-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-height: 70vh;
+
+    /* Layout Containers */
+    .header-section {
         text-align: center;
-    }
-    h1, h2, h3 {
-        color: #00F2FF;
-        letter-spacing: 0.15em;
-        text-align: center;
-        text-shadow: 0 0 10px rgba(0,242,255,0.3);
+        margin-bottom: 2rem;
     }
     .ritual-hint {
-        color: #666;
-        font-size: 0.9rem;
-        margin-bottom: 2rem;
-        letter-spacing: 0.1em;
-        font-style: italic;
+        color: #888;
+        font-size: 1.1rem;
+        margin: 1.5rem 0;
+        letter-spacing: 0.15em;
+        text-align: center;
+        font-weight: 300;
+    }
+
+    /* Typography */
+    h1 {
+        color: #00F2FF;
+        letter-spacing: 0.3em;
+        text-align: center;
+        text-shadow: 0 0 15px rgba(0,242,255,0.4);
+        margin-top: 0;
+        font-size: 2.2rem;
+        font-weight: 700;
+    }
+
+    /* Button Styling */
+    .stButton {
+        display: flex;
+        justify-content: center;
+        margin: 2rem 0;
     }
     .stButton>button {
-        background-color: rgba(0,242,255,0.05);
+        background-color: rgba(0,242,255,0.08);
         color: #00F2FF;
         border: 1px solid #00F2FF;
-        border-radius: 0;
-        padding: 0.8rem 3.5rem;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 2px;
+        padding: 0.8rem 4rem;
+        transition: all 0.3s ease;
         text-transform: uppercase;
-        letter-spacing: 0.3em;
-        font-size: 1.1rem;
+        letter-spacing: 0.4em;
+        font-size: 1.2rem;
+        white-space: nowrap;
+        min-width: 320px;
     }
     .stButton>button:hover {
         color: #fff;
         border-color: #fff;
         background-color: rgba(0,242,255,0.2);
-        box-shadow: 0 0 20px rgba(0,242,255,0.5);
+        box-shadow: 0 0 25px rgba(0,242,255,0.4);
     }
+
+    /* Result Card */
     .result-card {
-        background: rgba(10, 10, 10, 0.95);
-        border: 1px solid rgba(0,242,255,0.2);
-        backdrop-filter: blur(12px);
+        background: rgba(15, 15, 15, 0.98);
+        border: 1px solid rgba(0,242,255,0.25);
+        backdrop-filter: blur(20px);
         padding: 3rem;
-        margin-top: 2rem;
-        animation: emerge 1.5s cubic-bezier(0.23, 1, 0.32, 1);
-        border-radius: 4px;
-        box-shadow: 0 15px 40px rgba(0,0,0,0.7);
-        max-width: 800px;
-        margin-left: auto;
-        margin-right: auto;
+        margin-top: 1rem;
+        animation: slideIn 1s cubic-bezier(0.16, 1, 0.3, 1);
+        border-radius: 2px;
     }
-    .formula {
-        font-family: 'Courier New', Courier, monospace;
+    .formula-trace {
+        font-family: 'Courier New', monospace;
         color: #444;
-        font-size: 0.8rem;
+        font-size: 0.85rem;
         text-align: center;
-        margin-bottom: 2rem;
-        opacity: 0.6;
+        margin-bottom: 2.5rem;
+        border-bottom: 1px solid #222;
+        padding-bottom: 1rem;
     }
-    .gua-name {
-        font-size: 5rem;
+    .gua-title {
+        font-size: 5.5rem;
         font-weight: 700;
         color: #00F2FF;
         text-align: center;
-        margin: 1rem 0;
-        text-shadow: 0 0 30px rgba(0,242,255,0.6);
+        margin: 0.5rem 0;
+        text-shadow: 0 0 40px rgba(0,242,255,0.5);
     }
-    .gua-status {
-        text-align: center; 
-        color: #00F2FF; 
-        font-size: 0.9rem; 
-        margin-bottom: 2rem; 
+    .gua-status-code {
+        text-align: center;
+        color: #00F2FF;
+        font-size: 1rem;
         font-family: 'Courier New', monospace;
-        letter-spacing: 0.1em;
-    }
-    .gua-content {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 2rem;
-        text-align: left;
-        border-top: 1px solid rgba(255,255,255,0.1);
-        padding-top: 2rem;
-    }
-    .section-title {
-        color: #555;
-        font-size: 0.7rem;
-        text-transform: uppercase;
         letter-spacing: 0.2em;
-        margin-bottom: 0.5rem;
+        margin-bottom: 3rem;
+        opacity: 0.9;
     }
-    .poem {
-        color: #ccc;
-        font-size: 1.2rem;
-        line-height: 1.8;
-        letter-spacing: 0.1em;
-        border-left: 2px solid #00F2FF;
+    .gua-details {
+        display: flex;
+        flex-direction: column;
+        gap: 2.5rem;
+    }
+    .detail-item {
+        border-left: 3px solid #00F2FF;
         padding-left: 1.5rem;
     }
-    .interpretation {
-        color: #999;
-        font-size: 1rem;
+    .detail-label {
+        color: #555;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        margin-bottom: 0.6rem;
+    }
+    .detail-value-poem {
+        color: #e0e0e0;
+        font-size: 1.4rem;
         line-height: 1.8;
+        letter-spacing: 0.1em;
     }
-    .advice {
+    .detail-value-text {
+        color: #bbb;
+        font-size: 1.05rem;
+        line-height: 1.9;
+    }
+    .detail-value-advice {
         color: #00F2FF;
-        font-size: 0.95rem;
-        opacity: 0.8;
-        background: rgba(0,242,255,0.05);
+        font-size: 1rem;
+        background: rgba(0,242,255,0.04);
         padding: 1rem;
-        border-radius: 2px;
+        border-radius: 4px;
     }
-    @keyframes emerge {
-        from { opacity: 0; transform: scale(0.98) translateY(30px); filter: blur(15px); }
-        to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
     }
-    /* Hide Streamlit UI */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+
+    /* UI Hiding */
+    #MainMenu, footer, header { visibility: hidden; }
 </style>
 """
 st.markdown(cyber_zen_css, unsafe_allow_html=True)
 
-# --- Enhanced GUA DATA ---
+# --- Data ---
 GUA_DATA = {
     1: {
         "name": "大安", 
@@ -238,47 +244,44 @@ GUA_DATA = {
     }
 }
 
-# --- UI Logic ---
+# --- Main Interface ---
+st.markdown('<div class="header-section">', unsafe_allow_html=True)
+st.markdown("<h1>赛博禅龛</h1>", unsafe_allow_html=True)
+st.markdown('<div class="ritual-hint">请屏息凝神，默念所求之事</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown('<div class="main-container">', unsafe_allow_html=True)
-st.markdown("### 「 寂 · JÌ 」")
-st.markdown("## 赛博禅龛 · 小六壬先知")
-st.markdown('<div class="ritual-hint">请屏息凝神，于心中默念所求之事...</div>', unsafe_allow_html=True)
-
-# Centering the button with columns
-col1, col2, col3 = st.columns([1, 1, 1])
+# Centered Button
+col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
-    divine_trigger = st.button("感 应 天 机")
+    divine_trigger = st.button("感应天机", use_container_width=True)
 
 if divine_trigger:
     ip = get_remote_ip()
     allowed, remaining = check_rate_limit(ip)
     
     if not allowed:
-        st.toast(f"机缘未到。天机不可频泄，请于 {remaining // 60} 分钟后再试。", icon="⏳")
+        st.toast(f"机缘未到。天机一小时一泄，请于 {remaining // 60} 分钟后再试。", icon="⏳")
     else:
-        # Complex Animation Process
+        # Complex Animation
         anim_placeholder = st.empty()
         stages = [
-            ("📡 正在捕捉时空涟漪...", 0.6),
-            ("🌑 正在定位星历数据...", 0.8),
-            ("🕰️ 正在映射十二时辰...", 0.7),
-            ("⚡ 正在执行 O(1) 递归演算...", 1.2),
-            ("👁️ 正在解析神谕二进制码...", 0.9)
+            ("📡 正在捕捉时空涟漪...", 0.5),
+            ("🌑 正在定位星历数据...", 0.5),
+            ("🕰️ 正在映射十二时辰...", 0.5),
+            ("⚡ 执行 O(1) 递归演算...", 0.8),
+            ("👁️ 解析神谕二进制码...", 0.6)
         ]
         
         for stage, duration in stages:
-            anim_placeholder.markdown(f"""
-            <div style="text-align: center; color: #00F2FF; font-family: monospace; font-size: 1.2rem; margin-top: 2rem;">
-                {stage}<br>
-                <span style="font-size: 0.8rem; color: #333;">{datetime.datetime.now().isoformat()}</span>
-            </div>
-            """, unsafe_allow_html=True)
-            time.sleep(duration)
-        
+            with anim_placeholder.container():
+                st.markdown(f'<div style="text-align: center; color: #00F2FF; font-family: monospace; font-size: 1.1rem; margin-top: 1rem;">{stage}</div>', unsafe_allow_html=True)
+                # Matrix rain simulation
+                matrix = "".join([random.choice("0123456789ABCDEF") for _ in range(40)])
+                st.markdown(f'<div style="text-align: center; color: #111; font-family: monospace; font-size: 0.6rem; letter-spacing: 2px;">{matrix}</div>', unsafe_allow_html=True)
+                time.sleep(duration)
         anim_placeholder.empty()
         
-        # Calculation Logic
+        # Calculation
         now = datetime.datetime.now()
         lunar = LunarDate.from_solar_date(now.year, now.month, now.day)
         
@@ -286,43 +289,35 @@ if divine_trigger:
             if hour >= 23 or hour < 1: return 1
             return (hour + 1) // 2 + 1
             
-        M = lunar.month
-        D = lunar.day
-        H = get_shichen_index(now.hour)
+        M, D, H = lunar.month, lunar.day, get_shichen_index(now.hour)
         res_idx = (M + D + H - 2) % 6
         gua = GUA_DATA[res_idx]
+        shichen_names = ["", "子时", "丑时", "寅时", "卯时", "辰时", "巳时", "午时", "未时", "申时", "酉时", "戌时", "亥时"]
         
         update_rate_limit(ip)
-        
-        shichen_names = ["", "子时", "丑时", "寅时", "卯时", "辰时", "巳时", "午时", "未时", "申时", "酉时", "戌时", "亥时"]
         
         # Display Result
         st.markdown(f"""
         <div class="result-card">
-            <div class="formula">
-                PRECISION_TIME: {now.strftime('%Y-%m-%d %H:%M:%S')}<br>
-                LUNAR_MAPPING: {lunar.strftime('%Y年%L%M月%D')} {shichen_names[H]}<br>
-                ALGO_TRACE: ({M} + {D} + {H} - 2) % 6 = {res_idx}
+            <div class="formula-trace">
+                {now.strftime('%Y-%m-%d %H:%M:%S')} | {lunar.strftime('%Y年%L%M月%D')} {shichen_names[H]}<br>
+                ALGO: ({M} + {D} + {H} - 2) % 6 = {res_idx}
             </div>
-            <div class="gua-name">{gua["name"]}</div>
-            <div class="gua-status">{gua["status"]}</div>
-            <div class="gua-content">
-                <div>
-                    <div class="section-title">诗诀 Oracle Verse</div>
-                    <div class="poem">{gua["poem"]}</div>
+            <div class="gua-title">{gua["name"]}</div>
+            <div class="gua-status-code">{gua["status"]}</div>
+            <div class="gua-details">
+                <div class="detail-item">
+                    <div class="detail-label">诗诀 Oracle Verse</div>
+                    <div class="detail-value-poem">{gua["poem"]}</div>
                 </div>
-                <div>
-                    <div class="section-title">深层解读 Deep Interpretation</div>
-                    <div class="interpretation">{gua["interpretation"]}</div>
+                <div class="detail-item">
+                    <div class="detail-label">解读 Interpretation</div>
+                    <div class="detail-value-text">{gua["interpretation"]}</div>
                 </div>
-                <div>
-                    <div class="section-title">行动建议 Cyber Advice</div>
-                    <div class="advice">{gua["advice"]}</div>
+                <div class="detail-item">
+                    <div class="detail-label">建议 Advice</div>
+                    <div class="detail-value-advice">{gua["advice"]}</div>
                 </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
-st.markdown("<br><br><br>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #222; font-size: 0.7rem; letter-spacing: 0.3em;'>CODE IS THE NEW MANTRA · ALGORITHM IS THE OLD FATE</p>", unsafe_allow_html=True)
