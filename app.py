@@ -11,69 +11,84 @@ cyber_zen_css = """
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;700&display=swap');
 
     body {
-        background-color: #0d0d0d;
+        background-color: #050505;
         color: #e0e0e0;
         font-family: 'Noto Serif SC', 'Microsoft YaHei', serif;
     }
     .stApp {
-        background-color: #0d0d0d;
+        background-color: #050505;
     }
     h1, h2, h3 {
-        color: #b0b0b0;
-        letter-spacing: 0.1em;
+        color: #00F2FF;
+        letter-spacing: 0.15em;
         text-align: center;
+        text-shadow: 0 0 10px rgba(0,242,255,0.3);
     }
     .stButton>button {
-        background-color: transparent;
-        color: #888;
-        border: 1px solid #444;
+        background-color: rgba(0,242,255,0.05);
+        color: #00F2FF;
+        border: 1px solid #00F2FF;
         border-radius: 0;
-        padding: 0.5rem 2rem;
-        transition: all 0.3s ease;
+        padding: 0.5rem 2.5rem;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         display: block;
         margin: 0 auto;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
     }
     .stButton>button:hover {
         color: #fff;
-        border-color: #888;
-        box-shadow: 0 0 10px rgba(255,255,255,0.1);
+        border-color: #fff;
+        background-color: rgba(0,242,255,0.2);
+        box-shadow: 0 0 15px rgba(0,242,255,0.4);
     }
     .result-card {
-        background: rgba(20, 20, 20, 0.8);
-        border-left: 2px solid #555;
-        padding: 2rem;
+        background: rgba(10, 10, 10, 0.9);
+        border: 1px solid rgba(0,242,255,0.2);
+        backdrop-filter: blur(12px);
+        padding: 2.5rem;
         margin-top: 2rem;
-        animation: fadeIn 1s ease-in-out;
+        animation: emerge 1.2s cubic-bezier(0.23, 1, 0.32, 1);
+        border-radius: 4px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
     .formula {
-        font-family: monospace;
-        color: #666;
-        font-size: 0.9rem;
+        font-family: 'Courier New', Courier, monospace;
+        color: #555;
+        font-size: 0.85rem;
         text-align: center;
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
+        opacity: 0.7;
     }
     .gua-name {
-        font-size: 3rem;
+        font-size: 4rem;
         font-weight: 700;
-        color: #fff;
+        color: #00F2FF;
         text-align: center;
-        margin: 1rem 0;
-        text-shadow: 0 0 20px rgba(255,255,255,0.2);
+        margin: 1.5rem 0;
+        text-shadow: 0 0 25px rgba(0,242,255,0.5);
+        animation: pulse 3s infinite ease-in-out;
     }
     .gua-desc {
-        color: #aaa;
-        line-height: 1.8;
+        color: #999;
+        line-height: 2.1;
         text-align: center;
-        max-width: 500px;
+        max-width: 550px;
         margin: 0 auto;
+        letter-spacing: 0.05em;
     }
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
+    @keyframes emerge {
+        from { opacity: 0; transform: scale(0.95) translateY(20px); filter: blur(10px); }
+        to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; filter: drop-shadow(0 0 10px rgba(0,242,255,0.4)); }
+        50% { opacity: 0.8; filter: drop-shadow(0 0 20px rgba(0,242,255,0.6)); }
     }
     /* Hide Streamlit UI elements for immersion */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+    header {visibility: hidden;}
 </style>
 """
 st.markdown(cyber_zen_css, unsafe_allow_html=True)
@@ -81,12 +96,12 @@ st.markdown(cyber_zen_css, unsafe_allow_html=True)
 # --- Data & Logic ---
 
 GUA_DATA = {
-    1: {"name": "大安", "desc": "身不动时，五行属木，颜色青色，方位东方。大安事事昌，求财在坤方，失物去不远，宅舍保安康。"},
-    2: {"name": "留连", "desc": "卒未归时，五行属水，颜色黑色，方位北方。留连事难成，求谋日未明，官事只宜缓，去者未回程。"},
-    3: {"name": "速喜", "desc": "人即至时，五行属火，颜色红色，方位南方。速喜喜来临，求财向南行，失物午未申，逢人路上寻。"},
-    4: {"name": "赤口", "desc": "官事凶时，五行属金，颜色白色，方位西方。赤口主口舌，官事且紧防，失物急去寻，行人有惊慌。"},
-    5: {"name": "小吉", "desc": "人来喜时，五行属木，颜色青色，方位东方。小吉最吉昌，路上好商量，阴人来报喜，失物在坤方。"},
-    0: {"name": "空亡", "desc": "音信稀时，五行属土，颜色黄色，方位中央。空亡事不祥，阴人多乖张，求财无利益，行人有灾殃。"}
+    1: {"name": "大安", "status": "STATUS: STABLE / 200 OK", "desc": "身不动时，五行属木，求财在东方。大安事事昌，求财在坤方，失物去不远，宅舍保安康。", "interpretation": "此卦为极稳之象。如底层架构之固，如程序运行之顺。当下宜守不宜动，静候其成。"},
+    2: {"name": "留连", "status": "STATUS: PENDING / PROCESSING", "desc": "人未归时，五行属水，去者未回程。留连事难成，求谋日未明，官事只宜缓，去者未回程。", "interpretation": "此卦为延宕之象。如同数据传输阻塞，逻辑陷入回旋。凡事不可操之过急，需耐心等待系统响应。"},
+    3: {"name": "速喜", "status": "STATUS: INSTANT / PUSH", "desc": "人即至时，五行属火，求财向南行。速喜喜来临，求财向南行，失物午未申，逢人路上寻。", "interpretation": "此卦为速发之象。好比高优先级的推送提醒，灵感瞬间迸发。宜果断出击，把握转瞬即逝的窗口期。"},
+    4: {"name": "赤口", "status": "STATUS: CONFLICT / 403 FORBIDDEN", "desc": "官事凶时，五行属金，官非切要防。赤口主口舌，官事且紧防，失物急去寻，行人有惊慌。", "interpretation": "此卦为纷争之象。警惕防火墙被攻破或通信协议冲突。慎言谨行，防范口舌是非与突发之阻碍。"},
+    5: {"name": "小吉", "status": "STATUS: OPTIMIZED / SUCCESS", "desc": "人来喜时，五行属木，阴人来报喜。小吉最吉昌，路上好商量，阴人来报喜，失物在坤方。", "interpretation": "此卦为和合之象。如代码经过完美重构，系统资源调配得当。虽非大成，但胜在圆满顺遂，有贵人相助。"},
+    0: {"name": "空亡", "status": "STATUS: VOID / 404 NOT FOUND", "desc": "音信稀时，五行属土，求财无利益。空亡事不祥，阴人多乖张，求财无利益，行人有灾殃。", "interpretation": "此卦为虚无之象。链接已断开，数据已溢出。此时不宜寄托希望，宜彻底清空缓存，择日重新加载。"}
 }
 
 def get_shichen_index(hour):
@@ -134,7 +149,8 @@ if st.button("起 卦"):
         """, unsafe_allow_html=True)
         
         st.markdown(f'<div class="gua-name">{gua["name"]}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="gua-desc">{gua["desc"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="text-align: center; color: #00F2FF; font-size: 0.8rem; margin-bottom: 1rem; font-family: monospace;">{gua["status"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="gua-desc"><b>诗诀</b>：{gua["desc"]}<br><br><b>解读</b>：{gua["interpretation"]}</div>', unsafe_allow_html=True)
         
         st.markdown('</div>', unsafe_allow_html=True)
 
