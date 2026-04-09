@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[寂 · JÌ] 赛博禅龛 v4.9.2 - 尚书重明版</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --sidebar-bg: #010409;
+            --text-color: #c9d1d9;
+            --accent-color: #58a6ff;
+            --border-color: #30363d;
+            --h1-color: #f0f6fc;
+            --highlight-bg: rgba(187, 128, 9, 0.15);
+            --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "微软雅黑", sans-serif;
+            --placeholder-color: rgba(255, 255, 255, 0.1);
+        }
+
+        * { box-sizing: border-box; }
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: var(--bg-color); color: var(--text-color);
+            font-family: var(--font-stack); line-height: 2.1; overflow: hidden;
+        }
+
+        #zen-bg {
+            position: fixed; inset: 0; z-index: -1;
+            background: radial-gradient(circle at 50% 50%, #0d1117 0%, #080a0d 100%);
+        }
+
+        .app-container { display: flex; width: 100vw; height: 100vh; position: relative; }
+
+        /* Sidebar */
+        .left-sidebar {
+            width: 260px; background: var(--sidebar-bg); border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column; padding: 1.5rem 1rem; z-index: 100;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .left-sidebar.collapsed { transform: translateX(-100%); position: absolute; height: 100%; }
+        
+        .sidebar-header { font-size: 0.7rem; color: #484f58; letter-spacing: 2px; margin-bottom: 1.5rem; text-transform: uppercase; font-weight: bold; }
+        .file-list { flex: 1; overflow-y: auto; margin-bottom: 1rem; scrollbar-width: none; }
+        .file-list::-webkit-scrollbar { display: none; }
+        
+        .file-item {
+            padding: 10px 14px; border-radius: 8px; cursor: pointer; margin-bottom: 6px;
+            display: flex; align-items: center; gap: 10px; font-size: 0.9rem; transition: all 0.2s;
+            color: #8b949e; position: relative; border: 1px solid transparent;
+        }
+        .file-item:hover { background: rgba(255,255,255,0.03); color: #adbac7; }
+        .file-item.active { background: rgba(88, 166, 255, 0.1); color: white; border-color: rgba(88, 166, 255, 0.2); }
+        
+        .file-item .delete-btn, .file-item .rename-btn {
+            opacity: 0; transition: opacity 0.2s; padding: 4px; border-radius: 4px;
+        }
+        .file-item:hover .delete-btn, .file-item:hover .rename-btn { opacity: 0.5; }
+        .file-item .delete-btn:hover { color: #f85149; opacity: 1; }
+        .file-item .rename-btn:hover { color: var(--accent-color); opacity: 1; }
+
+        .btn-group { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+        .btn-sm { padding: 10px; background: #21262d; border: 1px solid var(--border-color); color: #c9d1d9; border-radius: 8px; cursor: pointer; font-size: 0.75rem; font-weight: 500; letter-spacing: 1px; transition: all 0.2s; }
+        .btn-sm:hover { background: #30363d; border-color: #8b949e; }
+
+        /* Main Editor */
+        .main-stage { flex: 1; position: relative; display: flex; flex-direction: column; overflow: hidden; }
+        .editor-container {
+            flex: 1; overflow-y: auto; scrollbar-width: none; padding: 12vh 0;
+            display: flex; justify-content: center; position: relative; scroll-behavior: smooth;
+        }
+        .editor-container::-webkit-scrollbar { display: none; }
+
+        #editor {
+            width: 95%; max-width: 780px; min-height: 70vh; outline: none;
+            font-size: 1.2rem; word-wrap: break-word; padding-bottom: 40vh;
+            position: relative; white-space: pre-wrap;
+        }
+
+        /* 占位符 - 极致物理遮断 */
+        #editor:empty:before, #editor.is-empty:before {
+            content: "在此入定，静待笔墨";
+            position: absolute; color: var(--placeholder-color);
+            pointer-events: none; font-weight: 200; letter-spacing: 2px;
+            transition: opacity 0.2s;
+        }
+        #editor.is-typing:before { display: none !important; }
+
+        /* Typography */
+        h1, h2, h3, h4, h5, h6 { margin: 1.5em 0 0.5em; color: var(--h1-color); font-weight: 600; line-height: 1.25; }
+        h1 { font-size: 2.2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+        h2 { font-size: 1.8rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+        h3 { font-size: 1.5rem; }
+        h4 { font-size: 1.25rem; color: var(--accent-color); }
+        h5 { font-size: 1.1rem; color: var(--accent-color); }
+        h6 { font-size: 1rem; color: #8b949e; }
+        
+        p { margin: 1rem 0; }
+        ul, ol { margin: 1rem 0; padding-left: 2rem; }
+        li { margin: 0.5rem 0; }
+
+        blockquote {
+            margin: 2rem 0; padding: 0.5rem 1.5rem; color: #8b949e;
+            border-left: 4px solid var(--accent-color); background: rgba(255,255,255,0.02);
+            font-style: italic; border-radius: 0 4px 4px 0;
+        }
+
+        .alert { padding: 1.2rem 1.5rem; margin: 1.5rem 0; border-left: 4px solid; border-radius: 8px; background: rgba(255,255,255,0.03); }
+        .alert-info { border-color: var(--accent-color); background: rgba(88, 166, 255, 0.05); }
+
+        pre { 
+            background: #161b22; padding: 1.2rem; border-radius: 10px; 
+            border: 1px solid var(--border-color); overflow-x: auto; margin: 1.5rem 0;
+            position: relative; line-height: 1.5;
+        }
+        code { font-family: ui-monospace, SFMono-Regular, "Cascadia Code", monospace; font-size: 0.95rem; color: #adbac7; }
+        
+        .copy-code-btn { 
+            position: absolute; top: 10px; right: 10px; background: #21262d; 
+            border: 1px solid var(--border-color); color: #8b949e; font-size: 0.65rem; 
+            padding: 4px 8px; border-radius: 6px; cursor: pointer; opacity: 0; transition: opacity 0.2s; 
+            user-select: none;
+        }
+        pre:hover .copy-code-btn { opacity: 1; }
+
+        /* Slash Menu - Fixed Position */
+        #slash-menu {
+            position: fixed; width: 240px; background: #1c2128; border: 1px solid var(--border-color);
+            border-radius: 12px; display: none; flex-direction: column; z-index: 10000; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.7); overflow: hidden; padding: 6px;
+            backdrop-filter: blur(10px);
+        }
+        .menu-label { font-size: 0.6rem; color: #484f58; padding: 8px 12px; text-transform: uppercase; letter-spacing: 1px; }
+        .menu-item { 
+            padding: 10px 14px; cursor: pointer; display: flex; align-items: center; gap: 12px; 
+            font-size: 0.85rem; color: #adbac7; border-radius: 8px; transition: all 0.1s;
+        }
+        .menu-item:hover, .menu-item.active { background: var(--accent-color); color: white; }
+        .menu-item span { font-weight: bold; width: 24px; text-align: center; opacity: 0.8; }
+
+        /* Right Sidebar - Outline */
+        .right-sidebar {
+            width: 240px; background: var(--bg-color); border-left: 1px solid var(--border-color);
+            display: flex; flex-direction: column; padding: 2rem 1.5rem; z-index: 90;
+            transition: all 0.3s; opacity: 0.2;
+        }
+        .right-sidebar:hover, .right-sidebar.pinned { opacity: 1; background: var(--sidebar-bg); }
+        .right-sidebar.pinned { opacity: 1; }
+        
+        .toc-container { flex: 1; overflow-y: auto; scrollbar-width: none; margin-top: 1.5rem; }
+        .toc-item { 
+            font-size: 0.8rem; color: #8b949e; padding: 8px 0; cursor: pointer; 
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
+            transition: color 0.2s; border-left: 2px solid transparent; padding-left: 10px;
+        }
+        .toc-item:hover { color: var(--accent-color); border-left-color: var(--accent-color); }
+
+        .pin-btn { cursor: pointer; width: 20px; height: 20px; fill: #484f58; transition: all 0.2s; }
+        .pinned .pin-btn { fill: var(--accent-color); transform: rotate(45deg); }
+
+        /* AI Bar */
+        #ai-bar {
+            position: fixed; bottom: 10%; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 600px; background: #1c2128; border: 1px solid var(--accent-color);
+            padding: 12px 20px; border-radius: 16px; display: none; gap: 12px; z-index: 1000;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        #ai-bar input { flex: 1; background: transparent; border: none; color: white; font-size: 1.1rem; outline: none; }
+
+        table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; border: 1px solid var(--border-color); }
+        td, th { border: 1px solid var(--border-color); padding: 10px; }
+    </style>
+</head>
+<body>
+    <div id="zen-bg"></div>
+    <div class="app-container">
+        <aside class="left-sidebar" id="left-sidebar">
+            <div class="sidebar-header">ARTIFACTS</div>
+            <div class="file-list" id="file-list"></div>
+            <div class="btn-group">
+                <button class="btn-sm" onclick="createNewDoc()">+ NEW DOC</button>
+                <button class="btn-sm" onclick="exportDoc()">EXPORT MD</button>
+                <button class="btn-sm" onclick="toggleLeftSidebar()">TOGGLE SIDEBAR</button>
+            </div>
+        </aside>
+
+        <main class="main-stage">
+            <div class="editor-container" id="editor-container">
+                <article id="editor" contenteditable="true" spellcheck="false" class="is-empty"></article>
+            </div>
+            <div id="slash-menu"></div>
+            <div id="ai-bar"><input type="text" id="ai-input" placeholder="唤醒灵感 (DeepSeek)..."></div>
+        </main>
+
+        <aside class="right-sidebar" id="right-sidebar">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="font-size: 0.7rem; color: #484f58; letter-spacing: 2px; font-weight: bold;">OUTLINE</div>
+                <div class="pin-btn" onclick="togglePin()">
+                    <svg viewBox="0 0 24 24"><path d="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12Z" /></svg>
+                </div>
+            </div>
+            <div class="toc-container" id="toc-container"></div>
+        </aside>
+    </div>
+
+    <script>
+        // --- 全局变量 ---
+        let db;
+        let activeDocId = null;
+        let isMenuOpen = false;
+        let selectedMenuIndex = 0;
+        let menuInteracted = false;
+        let typingTimer = null;
+        let savedSelection = null;
+
+        const editor = document.getElementById('editor');
+        const fileList = document.getElementById('file-list');
+        const tocContainer = document.getElementById('toc-container');
+        const slashMenu = document.getElementById('slash-menu');
+        const rightSidebar = document.getElementById('right-sidebar');
+        const leftSidebar = document.getElementById('left-sidebar');
+
+        const menuItems = [
+            { icon: 'H1', label: '一级标题', tag: 'H1' },
+            { icon: 'H2', label: '二级标题', tag: 'H2' },
+            { icon: 'H3', label: '三级标题', tag: 'H3' },
+            { icon: 'H4', label: '四级标题', tag: 'H4' },
+            { icon: 'H5', label: '五级标题', tag: 'H5' },
+            { icon: '引', label: '引用块', tag: 'BLOCKQUOTE' },
+            { icon: '项', label: '无序列表', tag: 'UL' },
+            { icon: '序', label: '有序列表', tag: 'OL' },
+            { icon: '码', label: '代码块', tag: 'PRE' },
+            { icon: '表', label: '表格', tag: 'TABLE' },
+            { icon: '信', label: '信息框', tag: 'INFO' }
+        ];
+
+        // --- 数据库 ---
+        const initDB = () => {
+            const req = indexedDB.open('CyberZenStorage', 9);
+            req.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('docs')) db.createObjectStore('docs', { keyPath: 'id' });
+            };
+            req.onsuccess = (e) => { db = e.target.result; loadDocs(); };
+        };
+
+        const loadDocs = () => {
+            const tx = db.transaction('docs', 'readonly');
+            tx.objectStore('docs').getAll().onsuccess = (e) => {
+                const docs = e.target.result.sort((a,b) => b.updatedAt - a.updatedAt);
+                fileList.innerHTML = docs.map(d => `
+                    <div class="file-item ${d.id === activeDocId ? 'active' : ''}" onclick="switchDoc('${d.id}')">
+                        <span id="title-${d.id}" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📄 ${d.title || '在此入定'}</span>
+                        <span class="rename-btn" onclick="event.stopPropagation(); startRename('${d.id}')">✏️</span>
+                        <span class="delete-btn" onclick="event.stopPropagation(); deleteDoc('${d.id}')">🗑️</span>
+                    </div>
+                `).join('');
+                if (docs.length > 0 && !activeDocId) switchDoc(docs[0].id);
+                else if (docs.length === 0) createNewDoc();
+            };
+        };
+
+        const createNewDoc = () => {
+            const id = 'doc_' + Date.now();
+            const doc = { id, title: '在此入定', content: '<p><br></p>', updatedAt: Date.now(), userRenamed: false };
+            db.transaction('docs', 'readwrite').objectStore('docs').add(doc).onsuccess = () => { activeDocId = id; loadDocs(); };
+        };
+
+        const switchDoc = (id) => {
+            activeDocId = id;
+            db.transaction('docs').objectStore('docs').get(id).onsuccess = (e) => {
+                editor.innerHTML = e.target.result.content || '<p><br></p>';
+                updateUI();
+                setCursor(editor.querySelector('p') || editor, 0);
+            };
+        };
+
+        const startRename = (id) => {
+            const span = document.getElementById(`title-${id}`);
+            const old = span.innerText.replace('📄 ', '');
+            span.innerHTML = `📄 <input class="file-name-input" value="${old}" onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter')finishRename('${id}',this.value);if(event.key==='Escape')loadDocs()">`;
+            span.querySelector('input').focus();
+        };
+
+        const finishRename = (id, title) => {
+            db.transaction('docs', 'readwrite').objectStore('docs').get(id).onsuccess = (e) => {
+                const doc = e.target.result; doc.title = title || '在此入定'; doc.userRenamed = true;
+                db.transaction('docs', 'readwrite').objectStore('docs').put(doc).onsuccess = () => loadDocs();
+            };
+        };
+
+        const deleteDoc = (id) => {
+            if (!confirm('确认焚毁此卷？')) return;
+            db.transaction('docs', 'readwrite').objectStore('docs').delete(id).onsuccess = () => {
+                if (activeDocId === id) activeDocId = null; loadDocs();
+            };
+        };
+
+        let saveTimer = null;
+        const autoSave = () => {
+            if (saveTimer) clearTimeout(saveTimer);
+            saveTimer = setTimeout(() => {
+                if (!activeDocId) return;
+                db.transaction('docs', 'readwrite').objectStore('docs').get(activeDocId).onsuccess = (e) => {
+                    const doc = e.target.result; if (!doc) return;
+                    doc.content = editor.innerHTML; doc.updatedAt = Date.now();
+                    const h1 = editor.querySelector('h1');
+                    const first = editor.innerText.split('\n').find(l => l.trim().length > 0) || '在此入定';
+                    if (!doc.userRenamed || doc.title === '在此入定') {
+                        doc.title = (h1 ? h1.innerText.trim() : first).substring(0, 30);
+                    }
+                    db.transaction('docs', 'readwrite').objectStore('docs').put(doc);
+                };
+            }, 1000);
+        };
+
+        // --- UI 控制 ---
+        const updateUI = () => { updatePlaceholder(); updateTOC(); attachCopyBtns(); };
+
+        const updatePlaceholder = () => {
+            const text = editor.textContent.replace(/[\u200B\uFEFF\n\r\s]/g, '');
+            const hasMedia = editor.querySelector('img, table, div, blockquote, pre, h1, h2, h3, h4, h5, h6, ul, ol') !== null;
+            if (text.length === 0 && !hasMedia) editor.classList.add('is-empty');
+            else editor.classList.remove('is-empty');
+        };
+
+        const updateTOC = () => {
+            const headers = editor.querySelectorAll('h1, h2, h3, h4, h5, h6');
+            if (headers.length === 0) { tocContainer.innerHTML = ''; return; }
+            tocContainer.innerHTML = Array.from(headers).map((h, i) => {
+                const id = h.id || `h-${i}`; h.id = id;
+                const text = h.innerText.replace(/[\u200B\uFEFF]/g, '').trim() || '无标题';
+                const level = parseInt(h.tagName[1]);
+                return `<div class="toc-item" style="padding-left:${(level-1)*12}px" onclick="document.getElementById('${id}').scrollIntoView({behavior:'smooth', block:'center'})">${text}</div>`;
+            }).join('');
+        };
+
+        const attachCopyBtns = () => {
+            editor.querySelectorAll('pre').forEach(pre => {
+                if (pre.querySelector('.copy-code-btn')) return;
+                const btn = document.createElement('button'); btn.className = 'copy-code-btn'; btn.innerText = 'COPY';
+                btn.onmousedown = e => e.preventDefault();
+                btn.onclick = () => {
+                    const code = pre.querySelector('code');
+                    navigator.clipboard.writeText(code ? code.innerText : pre.innerText);
+                    btn.innerText = 'DONE'; setTimeout(() => btn.innerText = 'COPY', 2000);
+                };
+                pre.appendChild(btn);
+            });
+        };
+
+        // --- 核心引擎 ---
+        const handleBlockTransform = () => {
+            const sel = window.getSelection(); if (!sel.rangeCount) return false;
+            const node = sel.anchorNode; if (node.nodeType !== 3) return false;
+            const text = node.textContent; const offset = sel.anchorOffset;
+            const prefix = text.substring(0, offset).replace(/[\u200B\uFEFF]/g, '');
+            const suffix = text.substring(offset);
+
+            const rules = [
+                { reg: /^(#{1,6})$/, tag: m => 'H' + m[1].length },
+                { reg: /^>$/, tag: () => 'BLOCKQUOTE' },
+                { reg: /^-$/, tag: () => 'UL' },
+                { reg: /^1\.$/, tag: () => 'OL' },
+                { reg: /^:::$/, tag: () => 'INFO' },
+                { reg: /^```$/, tag: () => 'PRE' }
+            ];
+
+            for (const r of rules) {
+                const m = prefix.match(r.reg);
+                if (m) {
+                    applyBlockTransform(r.tag(m), r.tag(m)==='INFO'?'alert alert-info':'', suffix);
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        const applyBlockTransform = (tag, cls, suffix = "") => {
+            const sel = window.getSelection();
+            const block = getClosestBlock(sel.anchorNode);
+            if (!block || block === editor) return;
+
+            const newEl = document.createElement(tag === 'UL' || tag === 'OL' ? tag.toLowerCase() : (tag === 'INFO' ? 'div' : tag));
+            if (cls) newEl.className = cls;
+            const content = suffix.trimStart() || '<br>';
+
+            if (tag === 'UL' || tag === 'OL') newEl.innerHTML = `<li>${content}</li>`;
+            else if (tag === 'PRE') newEl.innerHTML = `<code>${content}</code>`;
+            else newEl.innerHTML = content;
+
+            block.parentNode.replaceChild(newEl, block);
+            
+            let focusTarget = newEl;
+            if (tag === 'UL' || tag === 'OL') focusTarget = newEl.querySelector('li');
+            else if (tag === 'PRE') focusTarget = newEl.querySelector('code');
+            
+            setCursor(focusTarget, content === '<br>' ? 0 : content.length);
+            if (!newEl.nextElementSibling) { const p = document.createElement('p'); p.innerHTML = '<br>'; newEl.after(p); }
+            updateUI(); autoSave();
+        };
+
+        const getClosestBlock = (node) => {
+            let c = node; while (c && c.parentNode !== editor) c = c.parentNode; return c;
+        };
+
+        const setCursor = (el, offset) => {
+            if (!el) return;
+            requestAnimationFrame(() => {
+                const range = document.createRange(); const sel = window.getSelection();
+                let t = el; 
+                const findTextNode = (n) => {
+                    if (n.nodeType === 3) return n;
+                    for (let child of n.childNodes) {
+                        const res = findTextNode(child);
+                        if (res) return res;
+                    }
+                    return null;
+                };
+                t = findTextNode(el) || el;
+                try {
+                    const off = t.nodeType === 3 ? Math.min(offset, t.length) : 0;
+                    range.setStart(t, off); range.collapse(true);
+                    sel.removeAllRanges(); sel.addRange(range);
+                } catch(e) {
+                    range.selectNodeContents(el); range.collapse(true);
+                    sel.removeAllRanges(); sel.addRange(range);
+                }
+            });
+        };
+
+        // --- 斜杠菜单 ---
+        const showSlashMenu = () => {
+            const sel = window.getSelection(); if (!sel.rangeCount) return;
+            const range = sel.getRangeAt(0);
+            
+            const span = document.createElement('span'); span.innerHTML = '&#8203;';
+            range.insertNode(span);
+            const rect = span.getBoundingClientRect();
+            span.remove();
+
+            isMenuOpen = true; selectedMenuIndex = 0; menuInteracted = false;
+            slashMenu.style.display = 'flex';
+            slashMenu.style.left = Math.min(rect.left, window.innerWidth - 250) + 'px';
+            slashMenu.style.top = (rect.bottom + 10) + 'px';
+            renderSlashMenu();
+        };
+
+        const renderSlashMenu = () => {
+            let html = '<div class="menu-label">插入组件</div>';
+            menuItems.forEach((item, i) => {
+                const active = i === selectedMenuIndex ? 'active' : '';
+                html += `<div class="menu-item ${active}" onclick="execMenu(${i})"><span>${item.icon}</span> ${item.label}</div>`;
+            });
+            slashMenu.innerHTML = html;
+        };
+
+        const execMenu = (idx) => {
+            const sel = window.getSelection(); if (!sel.rangeCount) return;
+            const range = sel.getRangeAt(0);
+            const node = range.startContainer; const offset = range.startOffset;
+            
+            if (node.nodeType === 3) {
+                const text = node.textContent;
+                const slashIdx = text.lastIndexOf('/', offset - 1);
+                if (slashIdx !== -1) {
+                    node.textContent = text.substring(0, slashIdx) + text.substring(offset);
+                    range.setStart(node, slashIdx); range.collapse(true);
+                }
+            }
+            
+            const item = menuItems[idx];
+            if (item.tag === 'TABLE') {
+                const t = document.createElement('table');
+                t.innerHTML = '<tr><td>项目</td><td>描述</td></tr><tr><td>&nbsp;</td><td>&nbsp;</td></tr>';
+                const block = getClosestBlock(sel.anchorNode);
+                block.after(t);
+                if (!t.nextElementSibling) { const p = document.createElement('p'); p.innerHTML = '<br>'; t.after(p); }
+                setCursor(t.querySelector('td'), 0);
+            } else applyBlockTransform(item.tag, item.tag==='INFO'?'alert alert-info':'');
+            closeMenu();
+        };
+
+        const closeMenu = () => { slashMenu.style.display = 'none'; isMenuOpen = false; };
+
+        const exportDoc = () => {
+            const md = editor.innerText.replace(/[\u200B\uFEFF]/g, '');
+            const b = new Blob([md], {type:'text/markdown'});
+            const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'artifact.md'; a.click();
+        };
+
+        const togglePin = () => { rightSidebar.classList.toggle('pinned'); };
+        const toggleLeftSidebar = () => { leftSidebar.classList.toggle('collapsed'); };
+
+        // --- 事件监听 ---
+        editor.addEventListener('input', () => { updateUI(); autoSave(); });
+
+        editor.addEventListener('keydown', (e) => {
+            if (e.key.length === 1 || e.key === 'Enter') {
+                editor.classList.remove('is-empty');
+                editor.classList.add('is-typing');
+                clearTimeout(typingTimer);
+                typingTimer = setTimeout(() => editor.classList.remove('is-typing'), 2000);
+            }
+
+            if (isMenuOpen) {
+                if (e.key === 'ArrowDown') { e.preventDefault(); menuInteracted = true; selectedMenuIndex = (selectedMenuIndex + 1) % menuItems.length; renderSlashMenu(); return; }
+                if (e.key === 'ArrowUp') { e.preventDefault(); menuInteracted = true; selectedMenuIndex = (selectedMenuIndex - 1 + menuItems.length) % menuItems.length; renderSlashMenu(); return; }
+                if (e.key === 'Enter') { e.preventDefault(); execMenu(selectedMenuIndex); return; }
+                if (e.key === 'Escape' || e.key === ' ') { closeMenu(); return; }
+            }
+
+            if (e.key === ' ') { if (handleBlockTransform()) { e.preventDefault(); return; } }
+            if (e.key === '/') { setTimeout(showSlashMenu, 10); }
+
+            const sel = window.getSelection();
+            const block = getClosestBlock(sel.anchorNode);
+            if (block && (['BLOCKQUOTE', 'PRE', 'UL', 'OL', 'DIV'].includes(block.tagName) || block.classList.contains('alert'))) {
+                if (e.key === 'Enter') {
+                    const text = block.textContent.replace(/[\u200B\uFEFF\n\r\s]/g, '');
+                    if (text === '') {
+                        e.preventDefault();
+                        const p = document.createElement('p'); p.innerHTML = '<br>';
+                        if (['UL', 'OL'].includes(block.tagName)) { block.after(p); block.remove(); }
+                        else { block.parentNode.replaceChild(p, block); }
+                        setCursor(p, 0); updateUI(); autoSave();
+                    }
+                } else if (e.key === 'Backspace') {
+                    if (sel.anchorOffset === 0) {
+                        e.preventDefault();
+                        const p = document.createElement('p');
+                        const clone = block.cloneNode(true);
+                        const btn = clone.querySelector('.copy-code-btn'); if (btn) btn.remove();
+                        if (block.tagName === 'PRE') p.innerText = clone.innerText.replace(/[\u200B\uFEFF]/g, '');
+                        else p.innerHTML = clone.innerHTML;
+                        if (p.innerHTML === '' || p.innerHTML === '<code></code>') p.innerHTML = '<br>';
+                        block.parentNode.replaceChild(p, block);
+                        setCursor(p, 0); updateUI(); autoSave();
+                    }
+                }
+            }
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'e') { e.preventDefault(); document.getElementById('ai-bar').style.display = 'flex'; document.getElementById('ai-input').focus(); }
+            if (e.key === 'Escape') { document.getElementById('ai-bar').style.display = 'none'; closeMenu(); }
+        });
+
+        document.addEventListener('mousedown', (e) => {
+            if (isMenuOpen && !slashMenu.contains(e.target)) closeMenu();
+        });
+
+        initDB();
+    </script>
+</body>
+</html>
