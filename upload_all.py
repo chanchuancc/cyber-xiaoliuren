@@ -1,6 +1,7 @@
 import base64
 import json
 import subprocess
+import os
 
 def get_sha(path, repo):
     cmd = [
@@ -37,13 +38,17 @@ def upload_to_github(path, content, message, repo):
     else:
         print(f"Failed to upload {path} to {repo}: {stderr}")
 
-# --- Push to Meihua ---
-repo_meihua = "chanchuancc/cyber-meihuayishu"
-upload_to_github("meihua_app.py", open("meihua_app.py").read(), "Update: Imperial Portal UI v1.6.0", repo_meihua)
-upload_to_github("meihua_data.py", open("meihua_data.py").read(), "Update: Core data", repo_meihua)
-upload_to_github("requirements.txt", open("requirements.txt").read(), "Update: Requirements", repo_meihua)
+# --- Push to Both Repos ---
+repos = ["chanchuancc/cyber-meihuayishu", "chanchuancc/cyber-xiaoliuren"]
 
-# --- Push to Xiaoliuren ---
-repo_xiao = "chanchuancc/cyber-xiaoliuren"
-upload_to_github("app.py", open("app.py").read(), "Update: Imperial Portal UI v1.6.0", repo_xiao)
-upload_to_github("requirements.txt", open("requirements.txt").read(), "Update: Requirements", repo_xiao)
+for repo in repos:
+    # 1. Main Apps
+    if "meihua" in repo:
+        upload_to_github("meihua_app.py", open("meihua_app.py").read(), "Update: Imperial Void UI v1.9.0", repo)
+        upload_to_github("meihua_data.py", open("meihua_data.py").read(), "Update: Core data", repo)
+    else:
+        upload_to_github("app.py", open("app.py").read(), "Update: Imperial Void UI v1.9.0", repo)
+    
+    # 2. Config & Dependencies
+    upload_to_github("requirements.txt", open("requirements.txt").read(), "Update: Requirements", repo)
+    upload_to_github(".streamlit/config.toml", open(".streamlit/config.toml").read(), "Force Dark Theme Config", repo)
