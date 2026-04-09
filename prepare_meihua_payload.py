@@ -5,9 +5,9 @@ with open("meihua/meihua_app.py", "rb") as f:
     content = base64.b64encode(f.read()).decode("utf-8")
 
 payload = {
-    "message": "style: 陛下亲裁 - 梅花易数 v1.2.0 (金曜视觉、落梅动效、正中宫)",
+    "message": "feat: 陛下亲裁 - 梅花易数 v1.5.0 (神谕入口 Oracle Portal)",
     "content": content,
-    "sha": "f39a38dd0fa73d0ff1ef1042cd17425fdb628ecf"
+    "sha": "f6f217beffb0bba1d8395a9fed8426e328cf1af5"
 }
 
 with open("meihua_payload.json", "w") as f:

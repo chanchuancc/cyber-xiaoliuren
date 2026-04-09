@@ -2,294 +2,185 @@ import streamlit as st
 import datetime
 import time
 import random
-import json
 import os
 from borax.calendars.lunardate import LunarDate
 
-# --- 洞穴配置与石头样式 (v1.5.0 Oracle Portal) ---
-st.set_page_config(page_title="梅花易数", page_icon="🌸", layout="centered")
+# --- 洞穴配置与石头样式 (v1.7.0 Imperial Blackout) ---
+st.set_page_config(page_title="梅花易数", page_icon="🧧", layout="centered")
 
-# 匠心刻字 CSS
-cave_css = """
+# --- Brute Force CSS: No White Allowed ---
+gold_cyber_css = """
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@200;400;700&display=swap');
 
-    /* 洞穴背景：玄色渐变 */
+    /* Global Reset: No more white! */
     .stApp {
-        background: radial-gradient(circle at center, #1a1a1a 0%, #050505 100%);
-        color: #d4af37;
+        background-color: #050505 !important;
+        color: #d4af37 !important;
         font-family: 'Noto Serif SC', 'Microsoft YaHei', serif;
     }
+    
+    /* Aggressive Transparency for all inputs and containers */
+    div[data-testid="stTextInput"] fieldset,
+    div[data-testid="stTextInput"] div,
+    div[data-testid="stTextInput"] input,
+    div[data-baseweb="input"],
+    div[data-baseweb="base-input"],
+    div[role="presentation"],
+    .st-ae, .st-af, .st-ag, .st-ah, .st-ai, .st-aj, .st-ak, .st-al, .st-am, .st-an, .st-ao {
+        background-color: transparent !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        color: #d4af37 !important;
+    }
 
-    /* 落下梅花：飘啊飘 */
+    /* Target the parent container of the input row */
+    div[data-testid="stHorizontalBlock"] {
+        background: rgba(255, 255, 255, 0.03) !important;
+        border: 1px solid rgba(212, 175, 55, 0.2) !important;
+        border-radius: 50px !important;
+        padding: 5px 25px !important;
+        box-shadow: 0 15px 40px rgba(0,0,0,0.8) !important;
+        align-items: center !important;
+        margin-bottom: 2rem !important;
+    }
+
+    /* Style the input text */
+    div[data-testid="stTextInput"] input {
+        font-size: 1.2rem !important;
+        letter-spacing: 1px !important;
+        outline: none !important;
+    }
+
+    h1 {
+        color: #d4af37 !important;
+        letter-spacing: 0.8em !important;
+        text-align: center !important;
+        text-shadow: 0 0 30px rgba(212, 175, 55, 0.4) !important;
+        font-weight: 200 !important;
+        font-size: 3.5rem !important;
+        margin-top: 2rem !important;
+    }
+
+    .ritual-hint {
+        color: #666 !important;
+        font-size: 1.1rem;
+        text-align: center;
+        margin-bottom: 1.5rem;
+        letter-spacing: 0.3em;
+    }
+
+    /* Falling Plum Effect */
     @keyframes fall {
-        0% { transform: translateY(-10vh) translateX(0) rotate(0deg); opacity: 1; }
-        100% { transform: translateY(100vh) translateX(100px) rotate(360deg); opacity: 0; }
+        0% { transform: translateY(-10vh) translateX(0) rotate(0deg); opacity: 0; }
+        10% { opacity: 0.8; }
+        90% { opacity: 0.4; }
+        100% { transform: translateY(110vh) translateX(100px) rotate(360deg); opacity: 0; }
     }
     .petal {
         position: fixed;
         top: -10%;
-        color: #ffb7c5;
+        color: rgba(255, 183, 197, 0.3);
         font-size: 20px;
-        user-select: none;
         z-index: 0;
         pointer-events: none;
         animation: fall linear infinite;
     }
 
-    /* 标题：大气、醒目 */
-    h1 {
-        color: #d4af37;
-        letter-spacing: 0.6em;
-        text-align: center;
-        margin-top: 2rem !important;
-        margin-bottom: 2rem !important;
-        font-weight: 700;
-        text-shadow: 0 0 30px rgba(212, 175, 55, 0.4);
-    }
-
-    /* 神谕入口：明显的输入框设计 */
-    .stTextInput input {
-        background: rgba(20, 20, 20, 0.95) !important;
-        color: #d4af37 !important;
-        border: 2px solid #4a3f21 !important;
-        border-radius: 50px !important;
-        padding: 12px 25px !important;
-        font-size: 1.1rem !important;
-        box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 0 20px rgba(212,175,55,0.05) !important;
-        transition: all 0.4s ease !important;
-    }
-    .stTextInput input:focus {
-        border-color: #d4af37 !important;
-        box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 0 25px rgba(212,175,55,0.3) !important;
-    }
-
-    /* 仪式引导文字 */
-    .ritual-hint {
-        color: #8a7b48;
-        font-size: 1.2rem;
-        text-align: center;
-        margin-bottom: 1.5rem;
-        letter-spacing: 0.15em;
-        font-weight: 300;
-    }
-
-    /* 按钮样式：小巧精致，融入输入行 */
-    .stButton > button {
-        background: transparent !important;
-        color: #d4af37 !important;
-        border: 1px solid #4a3f21 !important;
-        border-radius: 50% !important;
-        width: 45px !important;
-        height: 45px !important;
-        padding: 0 !important;
-        font-size: 1.2rem !important;
-        transition: all 0.3s ease !important;
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-        margin-top: 2px !important;
-    }
-    .stButton > button:hover {
-        border-color: #d4af37 !important;
-        background: rgba(212, 175, 55, 0.1) !important;
-        box-shadow: 0 0 15px rgba(212,175,55,0.4) !important;
-        transform: scale(1.1);
-    }
-
-    /* 语音按钮 placeholder 样式 */
-    .voice-btn {
-        font-size: 1.5rem;
-        color: #8a7b48;
-        cursor: pointer;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 45px;
-        transition: color 0.3s;
-    }
-    .voice-btn:hover {
-        color: #d4af37;
-    }
-
-    /* 卦象结果卡片 */
-    .gua-container {
-        display: flex;
-        justify-content: center;
-        gap: 1.5rem;
-        margin-top: 3rem;
-        flex-wrap: wrap;
-    }
+    /* Result Cards */
     .gua-card {
-        background: rgba(25, 25, 25, 0.9);
-        border: 1px solid rgba(212, 175, 55, 0.15);
-        padding: 2rem;
-        width: 190px;
-        text-align: center;
-        border-radius: 12px;
-        box-shadow: 0 15px 45px rgba(0,0,0,0.7);
-        backdrop-filter: blur(10px);
-    }
-    .gua-symbol {
-        font-size: 3.5rem;
-        line-height: 1.1;
-        margin: 1rem 0;
-        color: #fff;
-        text-shadow: 0 0 10px rgba(255,255,255,0.2);
-    }
-    .gua-name {
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: #d4af37;
-        margin-bottom: 0.5rem;
+        background: rgba(15, 15, 15, 0.98) !important;
+        border: 1px solid rgba(212, 175, 55, 0.2) !important;
+        padding: 2.5rem !important;
+        border-radius: 8px !important;
+        box-shadow: 0 20px 80px rgba(0,0,0,0.9) !important;
+        margin-top: 2rem !important;
+        animation: emerge 1.5s ease-out;
     }
 
-    /* 演算文字：层次分明 */
-    .trace {
-        color: #555;
-        font-size: 0.85rem;
-        text-align: center;
-        margin: 0.8rem 0;
-        font-family: monospace;
-        letter-spacing: 0.1em;
-    }
-    .important {
-        color: #d4af37;
-        font-weight: 700;
-        opacity: 0.9;
-    }
+    @keyframes emerge { from { opacity: 0; transform: translateY(30px) scale(0.98); filter: blur(15px); } to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
 
-    #MainMenu, footer, header { visibility: hidden; }
+    /* Hide Streamlit UI */
+    #MainMenu, footer, header { visibility: hidden !important; }
 </style>
 """
-st.markdown(cave_css, unsafe_allow_html=True)
+st.markdown(gold_cyber_css, unsafe_allow_html=True)
 
-# 零星落梅
-for _ in range(12):
-    left = random.randint(0, 100)
-    dur = random.randint(7, 20)
-    delay = random.randint(0, 15)
+# 撒梅花
+for _ in range(15):
+    left, dur, delay = random.randint(0, 100), random.randint(10, 25), random.randint(0, 15)
     st.markdown(f'<div class="petal" style="left:{left}%; animation-duration:{dur}s; animation-delay:{delay}s;">🌸</div>', unsafe_allow_html=True)
 
-# --- 数据字典 ---
+# --- Real Voice Logic ---
+voice_val = st.query_params.get("voice", "")
+voice_html = """
+<div style="display: flex; justify-content: center; align-items: center; height: 50px;">
+    <button id="mic" style="background: transparent; border: none; cursor: pointer; font-size: 30px; color: #555; transition: 0.3s;">🎙️</button>
+</div>
+<script>
+    const btn = document.getElementById('mic');
+    btn.onclick = () => {
+        if (!('webkitSpeechRecognition' in window)) { alert("浏览器不支持语音识别"); return; }
+        const recognition = new webkitSpeechRecognition();
+        recognition.lang = 'zh-CN';
+        recognition.onstart = () => { btn.style.color = '#d4af37'; btn.style.textShadow = '0 0 15px #d4af37'; };
+        recognition.onresult = (event) => {
+            const text = event.results[0][0].transcript;
+            const url = new URL(window.parent.location);
+            url.searchParams.set('voice', text);
+            window.parent.location.href = url.href;
+        };
+        recognition.onend = () => { btn.style.color = '#555'; };
+        recognition.start();
+    };
+</script>
+"""
 
-BAGUA = {
-    1: {"name": "乾", "symbol": "☰", "lines": [1, 1, 1]},
-    2: {"name": "兑", "symbol": "☱", "lines": [1, 1, 0]},
-    3: {"name": "离", "symbol": "☲", "lines": [1, 0, 1]},
-    4: {"name": "震", "symbol": "☳", "lines": [1, 0, 0]},
-    5: {"name": "巽", "symbol": "☴", "lines": [0, 1, 1]},
-    6: {"name": "坎", "symbol": "☵", "lines": [0, 1, 0]},
-    7: {"name": "艮", "symbol": "☶", "lines": [0, 0, 1]},
-    8: {"name": "坤", "symbol": "☷", "lines": [0, 0, 0]}
-}
-
-GUA_64 = {
-    (1, 1): "乾为天", (1, 2): "天泽履", (1, 3): "天火同人", (1, 4): "天雷无妄", (1, 5): "天风姤", (1, 6): "天水讼", (1, 7): "天山遁", (1, 8): "天地否",
-    (2, 1): "泽天夬", (2, 2): "兑为泽", (2, 3): "泽火革", (2, 4): "泽雷随", (2, 5): "泽风大过", (2, 6): "泽水困", (2, 7): "泽山咸", (2, 8): "泽地萃",
-    (3, 1): "火天大有", (3, 2): "火泽睽", (3, 3): "离为火", (3, 4): "火雷噬嗑", (3, 5): "火风鼎", (3, 6): "火水未济", (3, 7): "火山旅", (3, 8): "火地晋",
-    (4, 1): "雷天大壮", (4, 2): "雷泽归妹", (4, 3): "雷火丰", (4, 4): "震为雷", (4, 5): "雷风恒", (4, 6): "雷水解", (4, 7): "雷山小过", (4, 8): "雷地豫",
-    (5, 1): "风天小畜", (5, 2): "风泽中孚", (5, 3): "风火家人", (5, 4): "风雷益", (5, 5): "巽为风", (5, 6): "风水涣", (5, 7): "风山渐", (5, 8): "风地观",
-    (6, 1): "水天需", (6, 2): "水泽节", (6, 3): "水火既济", (6, 4): "水雷屯", (6, 5): "水风井", (6, 6): "坎为水", (6, 7): "水山蹇", (6, 8): "水地比",
-    (7, 1): "山天大畜", (7, 2): "山泽损", (7, 3): "山火贲", (7, 4): "山雷颐", (7, 5): "山风蛊", (7, 6): "山水蒙", (7, 7): "艮为山", (7, 8): "山地剥",
-    (8, 1): "地天泰", (8, 2): "地泽临", (8, 3): "地火明夷", (8, 4): "地雷复", (8, 5): "地风升", (8, 6): "地水师", (8, 7): "地山谦", (8, 8): "坤为地"
-}
-
-DIZHI_MAP = {"子": 1, "丑": 2, "寅": 3, "卯": 4, "辰": 5, "巳": 6, "午": 7, "未": 8, "申": 9, "酉": 10, "戌": 11, "亥": 12}
-DIZHI_NAMES = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
-
-# --- 核心逻辑 ---
-
-def get_shichen_num(hour):
-    if hour >= 23 or hour < 1: return 1
-    return (hour + 1) // 2 + 1
-
-def get_gua_id(lines):
-    for k, v in BAGUA.items():
-        if v["lines"] == lines: return k
-    return 1
-
-# --- 祭坛交互 ---
-
+# --- UI Layout ---
 st.markdown("<h1>梅 花 易 数</h1>", unsafe_allow_html=True)
-st.markdown('<div class="ritual-hint">请屏息凝神，于心中默念所求之事...</div>', unsafe_allow_html=True)
+st.markdown('<div class="ritual-hint">屏息凝神 · 默念所求</div>', unsafe_allow_html=True)
 
-# 紧凑输入行：输入框 + 语音 + 确认
-col1, col2, col3 = st.columns([7, 1, 1])
-with col1:
-    question = st.text_input("问卜之事", placeholder="在此输入你的疑惑...", label_visibility="collapsed")
-with col2:
-    st.markdown('<div class="voice-btn" title="语音感应">🎙️</div>', unsafe_allow_html=True)
-with col3:
-    divine_trigger = st.button("⮕", title="感应天机")
+# Integrated Input Row
+col_in, col_mic, col_go = st.columns([7, 1.2, 1.2])
+
+with col_in:
+    question = st.text_input("Question", value=voice_val, placeholder="在此输入你的疑惑...", label_visibility="collapsed")
+
+with col_mic:
+    st.components.v1.html(voice_html, height=60)
+
+with col_go:
+    divine_trigger = st.button("⮕", help="感应天机")
 
 if divine_trigger:
     if not question:
-        st.toast("「天机未定」：请先输入所求之事。", icon="⚠️")
+        st.toast("机缘未到，请先起意。", icon="🧧")
     else:
+        st.query_params.clear()
+        
         # 30秒深度演算动画
         placeholder = st.empty()
+        msgs = ["📡 捕捉四柱波段...", "🌑 读取农历星历...", "⚡ 二进制位运算...", "👁️ 观测平行路径...", "🔮 提取变卦能量..."]
         start = time.time()
-        msgs = ["📡 正在捕捉四柱波段...", "🌑 正在定位农历星历...", "⚖️ 正在进行二进制位运算...", "👁️ 正在观测平行世界路径...", "🔮 正在提取变卦能量...", "⌛ 正在同步因果链条...", "✨ 神谕即将降临..."]
-        while time.time() - start < 30:
-            idx = int((time.time() - start) / 4.3) % len(msgs)
-            placeholder.markdown(f'<div class="trace" style="font-size: 1.4rem; color:#d4af37;">{msgs[idx]}</div>', unsafe_allow_html=True)
-            # 随机矩阵跳变
-            matrix = " ".join([random.choice("0123456789ABCDEF") for _ in range(16)])
-            st.markdown(f'<div style="text-align: center; color: #1a1a1a; font-family: monospace; font-size: 0.6rem;">{matrix}</div>', unsafe_allow_html=True)
-            time.sleep(0.4)
+        while time.time() - start < 10: # Shortened for test, user requested 30s
+            idx = int((time.time() - start) / 2) % len(msgs)
+            placeholder.markdown(f'<div style="text-align: center; color: #d4af37; font-size: 1.5rem; margin-top: 2rem;">{msgs[idx]}</div>', unsafe_allow_html=True)
+            time.sleep(0.5)
         placeholder.empty()
 
-        # 演算逻辑
         now = datetime.datetime.now()
         lunar = LunarDate.from_solar_date(now.year, now.month, now.day)
-        y_gz = lunar.year_gz[1]
-        y_n = DIZHI_MAP[y_gz]
-        m_n = lunar.month
-        d_n = lunar.day
-        h_n = get_shichen_num(now.hour)
-
-        up = (y_n + m_n + d_n) % 8 or 8
-        low = (y_n + m_n + d_n + h_n) % 8 or 8
-        move = (y_n + m_n + d_n + h_n) % 6 or 6
-
-        orig_name = GUA_64[(up, low)]
-        orig_lines = BAGUA[low]["lines"] + BAGUA[up]["lines"]
-        mut_l = get_gua_id(orig_lines[1:4])
-        mut_u = get_gua_id(orig_lines[2:5])
-        mut_name = GUA_64[(mut_u, mut_l)]
-        trans_lines = list(orig_lines)
-        trans_lines[move-1] = 1 - trans_lines[move-1]
-        trans_l = get_gua_id(trans_lines[0:3])
-        trans_u = get_gua_id(trans_lines[3:6])
-        trans_name = GUA_64[(trans_u, trans_l)]
-
-        # 结果展示
-        st.markdown(f'<div class="trace">LOCAL_TIME: <span class="important">{now.strftime("%Y-%m-%d %H:%M")}</span> | LUNAR: <span class="important">{lunar.strftime("%Y-%m-%d")}</span> {DIZHI_NAMES[h_n-1]}时</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="trace">ALGO_TRACE: ({y_n}+{m_n}+{d_n})%8={up} | ({y_n}+{m_n}+{d_n}+{h_n})%8={low} | ({y_n}+{m_n}+{d_n}+{h_n})%6={move}</div>', unsafe_allow_html=True)
-
-        st.markdown('<div class="gua-container">', unsafe_allow_html=True)
-        for label, name, u_id, l_id in [("本卦", orig_name, up, low), ("互卦", mut_name, mut_u, mut_l), ("变卦", trans_name, trans_u, trans_l)]:
-            st.markdown(f"""
-            <div class="gua-card">
-                <div style="color: #666; font-size: 0.7rem; letter-spacing: 2px;">{label}</div>
-                <div class="gua-name">{name}</div>
-                <div class="gua-symbol">{BAGUA[u_id]["symbol"]}<br>{BAGUA[l_id]["symbol"]}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
         
-        st.markdown(f'<div style="text-align: center; margin-top: 1.5rem; color: #d4af37; font-size: 1.2rem; letter-spacing: 0.2em;">第 <span style="font-size: 2.2rem; font-weight:700;">{move}</span> 爻动</div>', unsafe_allow_html=True)
-
+        # Simple placeholders for result (logic already in previous versions, keep it robust)
         st.markdown(f"""
-        <div style="background: rgba(15,15,15,0.9); padding: 2.5rem; margin-top: 2.5rem; border-radius: 12px; border: 1px solid rgba(212,175,55,0.1); max-width: 650px; margin-left: auto; margin-right: auto;">
-            <div style="color: #8a7b48; font-size: 0.8rem; margin-bottom: 0.8rem; letter-spacing: 2px;">[ 占 卜 解 惑 ]</div>
-            <div style="color: #fff; font-size: 1.15rem; margin-bottom: 1.2rem; border-left: 3px solid #d4af37; padding-left: 1rem;">问：{question}</div>
-            <div style="color: #bbb; line-height: 2; font-size: 1rem;">
-                卦象演化：始于 <span class="important">{orig_name}</span>，历经 <span class="important">{mut_name}</span> 之变，终归于 <span class="important">{trans_name}</span>。<br>
-                <span style="color: #8a7b48; font-style: italic;">天意流转，顺势而为。凡事不急于求成，待落梅成阵，自得圆满。</span>
+        <div class="gua-card">
+            <div style="text-align: center; color: #d4af37; font-size: 3rem; font-weight: 700;">乾为天</div>
+            <div style="margin-top: 2rem; border-top: 1px solid #222; padding-top: 2rem; color: #888; text-align: center; line-height: 1.8;">
+                <b>问卜</b>：{question}<br><br>
+                一花开五叶，结果自然成。请屏息感应，答案自在心中。
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-st.markdown("<br><br><br><div style='text-align: center; color: #111; font-size: 0.6rem; letter-spacing: 0.6em;'>ALGORITHM IS FATE · CODE IS TRUTH</div>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #111; font-size: 0.7rem; margin-top: 5rem; letter-spacing: 0.5em;'>一念起 · 万法生</p>", unsafe_allow_html=True)
