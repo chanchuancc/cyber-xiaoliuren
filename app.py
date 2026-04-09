@@ -4,9 +4,10 @@ import datetime
 import time
 import json
 import os
+import random
 
-# --- Configuration & Styling (v1.3.1 Imperial Refinement) ---
-st.set_page_config(page_title="赛博禅龛", page_icon="⛩️", layout="centered")
+# --- 洞穴配置与石头样式 (v1.5.0 Oracle Portal) ---
+st.set_page_config(page_title="小六壬", page_icon="⛩️", layout="centered")
 
 cyber_zen_css = """
 <style>
@@ -21,44 +22,86 @@ cyber_zen_css = """
     
     /* Remove unnecessary spacing */
     .block-container {
-        padding-top: 1rem !important;
+        padding-top: 1.5rem !important;
         padding-bottom: 2rem !important;
         max-width: 800px !important;
     }
 
     h1 {
         color: #00F2FF;
-        letter-spacing: 0.5em;
+        letter-spacing: 0.6em;
         text-align: center;
-        text-shadow: 0 0 20px rgba(0,242,255,0.5);
-        margin-bottom: 1rem !important;
+        text-shadow: 0 0 30px rgba(0,242,255,0.4);
+        margin-bottom: 1.5rem !important;
         font-weight: 700;
-        font-size: 2.5rem;
+        font-size: 2.8rem;
     }
 
+    /* Ritual Hint */
     .ritual-hint {
         color: #888;
-        font-size: 1rem;
+        font-size: 1.1rem;
         text-align: center;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1rem;
         letter-spacing: 0.2em;
         font-weight: 300;
+    }
+
+    /* Oracle Portal Input row */
+    .stTextInput input {
+        background: rgba(10, 10, 10, 0.9) !important;
+        color: #00F2FF !important;
+        border: 2px solid rgba(0,242,255,0.2) !important;
+        border-radius: 50px !important;
+        padding: 12px 25px !important;
+        font-size: 1rem !important;
+        box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 0 20px rgba(0,242,255,0.05) !important;
+        transition: all 0.4s ease !important;
+    }
+    .stTextInput input:focus {
+        border-color: #00F2FF !important;
+        box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 0 25px rgba(0,242,255,0.3) !important;
+    }
+
+    /* Small Button Style */
+    .stButton > button {
+        background: transparent !important;
+        color: #00F2FF !important;
+        border: 1px solid rgba(0,242,255,0.3) !important;
+        border-radius: 50% !important;
+        width: 45px !important;
+        height: 45px !important;
+        padding: 0 !important;
+        font-size: 1.2rem !important;
+        transition: all 0.3s ease !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        margin-top: 2px !important;
+    }
+    .stButton > button:hover {
+        border-color: #00F2FF !important;
+        background: rgba(0,242,255,0.1) !important;
+        box-shadow: 0 0 15px rgba(0,242,255,0.4) !important;
+        transform: scale(1.1);
     }
 
     /* Number Selection Matrix */
     div[data-testid="stRadio"] > div {
         flex-direction: row !important;
         justify-content: center !important;
-        gap: 10px !important;
+        gap: 12px !important;
+        margin-top: 1rem !important;
     }
     div[data-testid="stRadio"] label {
         background: rgba(0,242,255,0.02) !important;
-        border: 1px solid rgba(0,242,255,0.2) !important;
-        border-radius: 0px !important;
-        padding: 5px 15px !important;
+        border: 1px solid rgba(0,242,255,0.1) !important;
+        border-radius: 2px !important;
+        padding: 8px 18px !important;
         color: #555 !important;
         transition: all 0.2s ease !important;
         font-family: monospace !important;
+        font-size: 1.1rem !important;
     }
     div[data-testid="stRadio"] label:hover {
         border-color: #00F2FF !important;
@@ -70,45 +113,19 @@ cyber_zen_css = """
     div[data-testid="stRadio"] label:has(input:checked) {
         border-color: #00F2FF !important;
         color: #00F2FF !important;
-        box-shadow: 0 0 15px rgba(0,242,255,0.4) !important;
-        background: rgba(0,242,255,0.1) !important;
-    }
-
-    /* Primary Button */
-    .stButton {
-        display: flex;
-        justify-content: center;
-        margin-top: 1.5rem;
-    }
-    .stButton > button {
-        background-color: transparent !important;
-        color: #00F2FF !important;
-        border: 1px solid #00F2FF !important;
-        border-radius: 0px !important;
-        padding: 0.8rem 5rem !important;
-        transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1) !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.8em !important;
-        font-size: 1.2rem !important;
-        white-space: nowrap !important;
-        width: auto !important;
-    }
-    .stButton > button:hover {
-        color: #fff !important;
-        border-color: #fff !important;
-        background-color: rgba(0,242,255,0.15) !important;
-        box-shadow: 0 0 30px rgba(0,242,255,0.6) !important;
+        box-shadow: 0 0 20px rgba(0,242,255,0.3) !important;
+        background: rgba(0,242,255,0.15) !important;
     }
 
     /* Result Card */
     .result-card {
         background: rgba(10, 10, 10, 0.98);
-        border: 1px solid rgba(0,242,255,0.3);
+        border: 1px solid rgba(0,242,255,0.2);
         backdrop-filter: blur(20px);
         padding: 3rem;
         margin-top: 1.5rem;
         animation: slideIn 1s cubic-bezier(0.23, 1, 0.32, 1);
-        border-radius: 0px;
+        border-radius: 8px;
         box-shadow: 0 20px 60px rgba(0,0,0,0.9);
         max-width: 750px;
         margin-left: auto;
@@ -126,64 +143,27 @@ cyber_zen_css = """
     }
 
     .gua-name {
-        font-size: 6rem;
+        font-size: 5.5rem;
         font-weight: 700;
         color: #00F2FF;
         text-align: center;
         margin: 0.5rem 0;
-        text-shadow: 0 0 40px rgba(0,242,255,0.6);
+        text-shadow: 0 0 40px rgba(0,242,255,0.5);
         letter-spacing: 0.2em;
     }
 
-    .gua-status {
-        text-align: center;
-        color: #00F2FF;
-        font-size: 1rem;
-        font-family: monospace;
-        letter-spacing: 0.3em;
-        margin-bottom: 3rem;
-        opacity: 0.7;
-    }
-
-    .gua-content {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 2.5rem;
-        text-align: left;
-    }
-
-    .section-title {
+    /* Voice Placeholder */
+    .voice-btn {
+        font-size: 1.5rem;
         color: #444;
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.3em;
-        margin-bottom: 0.8rem;
-        border-bottom: 1px solid #111;
-        display: inline-block;
+        cursor: pointer;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 45px;
     }
-
-    .poem {
-        color: #e0e0e0;
-        font-size: 1.4rem;
-        line-height: 1.8;
-        letter-spacing: 0.15em;
-        border-left: 3px solid #00F2FF;
-        padding-left: 2rem;
-    }
-
-    .interpretation {
-        color: #999;
-        font-size: 1.05rem;
-        line-height: 2.0;
-    }
-
-    .advice {
+    .voice-btn:hover {
         color: #00F2FF;
-        font-size: 1rem;
-        background: rgba(0,242,255,0.05);
-        padding: 1.5rem;
-        border-radius: 0px;
-        border: 1px solid rgba(0,242,255,0.1);
     }
 
     @keyframes slideIn {
@@ -217,7 +197,6 @@ ip_cache = get_ip_cache()
 def save_cache():
     try:
         now = time.time()
-        # Keep only last 24h
         cleaned = {k: v for k, v in ip_cache.items() if now - v < 86400}
         with open(STORAGE_FILE, "w") as f:
             json.dump(cleaned, f)
@@ -264,7 +243,7 @@ GUA_DATA = {
     5: {
         "name": "小吉",
         "status": "STATUS: OPTIMIZED / SUCCESS",
-        "poem": "小吉最吉昌，路上好商量。<br>阴人来报喜，失物在坤方。<br>行人立即至，交易甚辉煌。<br>凡事皆和合，病者祷上苍。",
+        "poem": "小吉最吉昌，路上好商商。<br>阴人来报喜，失物在坤方。<br>行人立即至，交易甚辉煌。<br>凡事皆和合，病者祷上苍。",
         "interpretation": "人来喜时，五行属木。此卦为和合之象。如代码经过完美重构，系统资源调配得当。虽非宏大叙事，但贵在细节圆满，常有意外之喜（贵人相助）。是推进计划的黄金时刻。",
         "advice": "宜：合作、联姻、面试、发布新版。忌：独断、冷战、傲慢。"
     },
@@ -283,77 +262,85 @@ def get_shichen_index(hour):
 
 # --- UI Layout ---
 
-st.markdown("<h1>【 赛 博 禅 龛 】</h1>", unsafe_allow_html=True)
-st.markdown('<div class="ritual-hint">请屏息凝神，凭直觉择一灵数：</div>', unsafe_allow_html=True)
+st.markdown("<h1>【 小 六 壬 】</h1>", unsafe_allow_html=True)
+st.markdown('<div class="ritual-hint">请屏息凝神，默念所求之事...</div>', unsafe_allow_html=True)
 
-# Horizontal Number Selection
+# Integrated Input Row
+col1, col2, col3 = st.columns([7, 1, 1])
+with col1:
+    question = st.text_input("问卜之事", placeholder="在此输入你的疑惑...", label_visibility="collapsed")
+with col2:
+    st.markdown('<div class="voice-btn" title="语音感应">🎙️</div>', unsafe_allow_html=True)
+with col3:
+    divine_trigger = st.button("⮕", title="感应天机")
+
+# Number Selection below
+st.markdown('<div style="text-align: center; color: #444; font-size: 0.8rem; margin-top: 2rem;">凭直觉择一灵数：</div>', unsafe_allow_html=True)
 n_options = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 N = st.radio("灵数选择", n_options, index=4, horizontal=True, label_visibility="collapsed")
 
 # Main Action
-if st.button("感 应 天 机"):
-    ip = get_remote_ip()
-    now_ts = time.time()
-    
-    if ip in ip_cache and now_ts - ip_cache[ip] < 3600:
-        remaining = int(3600 - (now_ts - ip_cache[ip]))
-        st.toast(f"「机缘未到」：天机一小时一泄，请于 {remaining // 60} 分钟后再来。", icon="⏳")
+if divine_trigger:
+    if not question:
+        st.toast("「天机未定」：请先输入所求之事。", icon="⚠️")
     else:
-        # Update Rate Limit
-        ip_cache[ip] = now_ts
-        save_cache()
+        ip = get_remote_ip()
+        now_ts = time.time()
         
-        # Ritual Animation
-        anim_placeholder = st.empty()
-        stages = [
-            ("📡 正在捕捉时空涟漪...", 0.6),
-            ("🌑 正在定位星历数据...", 0.7),
-            ("⚡ 注入灵数 N=" + str(N) + " 执行命运演算...", 1.2),
-            ("👁️ 正在解析神谕二进制码...", 0.8)
-        ]
-        
-        for stage, duration in stages:
-            anim_placeholder.markdown(f"""
-            <div style="text-align: center; color: #00F2FF; font-family: monospace; font-size: 1rem; margin: 1.5rem 0;">
-                {stage}<br>
-                <span style="font-size: 0.6rem; color: #1a1a1a;">{datetime.datetime.now().isoformat()}</span>
+        if ip in ip_cache and now_ts - ip_cache[ip] < 3600:
+            remaining = int(3600 - (now_ts - ip_cache[ip]))
+            st.toast(f"「机缘未到」：天机不可频泄，请于 {remaining // 60} 分钟后再来。", icon="⏳")
+        else:
+            # Update Cache
+            ip_cache[ip] = now_ts
+            save_cache()
+            
+            # Ritual Animation
+            anim_placeholder = st.empty()
+            stages = [
+                ("📡 正在捕捉时空涟漪...", 0.6),
+                ("🌑 正在定位星历数据...", 0.7),
+                ("⚡ 注入灵数 N=" + str(N) + " 执行命运演算...", 1.2),
+                ("👁️ 正在解析神谕二进制码...", 0.8)
+            ]
+            
+            for stage, duration in stages:
+                anim_placeholder.markdown(f"""
+                <div style="text-align: center; color: #00F2FF; font-family: monospace; font-size: 1rem; margin: 2rem 0;">
+                    {stage}<br>
+                    <span style="font-size: 0.6rem; color: #1a1a1a;">{datetime.datetime.now().isoformat()}</span>
+                </div>
+                """, unsafe_allow_html=True)
+                time.sleep(duration)
+            
+            anim_placeholder.empty()
+            
+            # Logic
+            now = datetime.datetime.now()
+            lunar = LunarDate.from_solar_date(now.year, now.month, now.day)
+            M, D, H = lunar.month, lunar.day, get_shichen_index(now.hour)
+            res_idx = (M + D + H + N - 3) % 6
+            gua = GUA_DATA[res_idx]
+            
+            # Result Display
+            st.markdown(f"""
+            <div class="result-card">
+                <div class="formula">
+                    ALGO_TRACE: ({M} + {D} + {H} + {N} - 3) mod 6 = {res_idx} | {now.strftime('%H:%M:%S')}
+                </div>
+                <div class="gua-name">{gua["name"]}</div>
+                <div class="gua-status">{gua["status"]}</div>
+                <div class="gua-content">
+                    <div style="border-left: 3px solid #00F2FF; padding-left: 1.5rem; margin-bottom: 2rem;">
+                        <span style="color: #444; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.3em;">[ 问 卜 ]</span><br>
+                        <span style="font-size: 1.2rem; color: #fff;">{question}</span>
+                    </div>
+                    <div class="poem">{gua["poem"]}</div>
+                    <div class="interpretation">{gua["interpretation"]}</div>
+                    <div class="advice">{gua["advice"]}</div>
+                </div>
             </div>
             """, unsafe_allow_html=True)
-            time.sleep(duration)
-        
-        anim_placeholder.empty()
-        
-        # Calculation Logic
-        now = datetime.datetime.now()
-        lunar = LunarDate.from_solar_date(now.year, now.month, now.day)
-        M, D, H = lunar.month, lunar.day, get_shichen_index(now.hour)
-        
-        # Salted Formula: (M + D + H + N - 3) % 6
-        res_idx = (M + D + H + N - 3) % 6
-        gua = GUA_DATA[res_idx]
-        shichen_names = ["", "子时", "丑时", "寅时", "卯时", "辰时", "巳时", "午时", "未时", "申时", "酉时", "戌时", "亥时"]
-        
-        # Result Display
-        st.markdown(f"""
-        <div class="result-card">
-            <div class="formula">
-                ALGO_TRACE: ({M} + {D} + {H} + {N} - 3) mod 6 = {res_idx} | {now.strftime('%H:%M:%S')}
-            </div>
-            <div class="gua-name">{gua["name"]}</div>
-            <div class="gua-status">{gua["status"]}</div>
-            <div class="gua-content">
-                <div>
-                    <div class="section-title">诗诀 Oracle Verse</div>
-                    <div class="poem">{gua["poem"]}</div>
-                </div>
-                <div>
-                    <div class="section-title">解读 Interpretation</div>
-                    <div class="interpretation">{gua["interpretation"]}</div>
-                </div>
-                <div class="advice">{gua["advice"]}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
 
 st.markdown("<br><br><br>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: #1a1a1a; font-size: 0.6rem; letter-spacing: 0.5em;'>ALGORITHM IS FATE · CODE IS TRUTH</p>", unsafe_allow_html=True)
