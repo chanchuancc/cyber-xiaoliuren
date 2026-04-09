@@ -6,10 +6,10 @@ import json
 import os
 from borax.calendars.lunardate import LunarDate
 
-# --- 洞穴配置与石头样式 (v1.4.0 Cavemen Refined) ---
+# --- 洞穴配置与石头样式 (v1.5.0 Oracle Portal) ---
 st.set_page_config(page_title="梅花易数", page_icon="🌸", layout="centered")
 
-# 石头刻字 CSS
+# 匠心刻字 CSS
 cave_css = """
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;700&display=swap');
@@ -37,96 +37,126 @@ cave_css = """
         animation: fall linear infinite;
     }
 
-    /* 标题：大，稳，没虚的 */
+    /* 标题：大气、醒目 */
     h1 {
         color: #d4af37;
-        letter-spacing: 0.5em;
+        letter-spacing: 0.6em;
         text-align: center;
-        margin-top: 1rem !important;
+        margin-top: 2rem !important;
+        margin-bottom: 2rem !important;
         font-weight: 700;
-        text-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+        text-shadow: 0 0 30px rgba(212, 175, 55, 0.4);
     }
 
-    /* 输入框：石洞感 */
-    .stTextArea label, .stTextInput label {
-        color: #8a7b48 !important;
+    /* 神谕入口：明显的输入框设计 */
+    .stTextInput input {
+        background: rgba(20, 20, 20, 0.95) !important;
+        color: #d4af37 !important;
+        border: 2px solid #4a3f21 !important;
+        border-radius: 50px !important;
+        padding: 12px 25px !important;
         font-size: 1.1rem !important;
-        text-align: center;
-        display: block;
-        width: 100%;
+        box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 0 20px rgba(212,175,55,0.05) !important;
+        transition: all 0.4s ease !important;
     }
-    .stTextArea textarea, .stTextInput input {
-        background-color: rgba(20, 20, 20, 0.9) !important;
+    .stTextInput input:focus {
+        border-color: #d4af37 !important;
+        box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 0 25px rgba(212,175,55,0.3) !important;
+    }
+
+    /* 仪式引导文字 */
+    .ritual-hint {
+        color: #8a7b48;
+        font-size: 1.2rem;
+        text-align: center;
+        margin-bottom: 1.5rem;
+        letter-spacing: 0.15em;
+        font-weight: 300;
+    }
+
+    /* 按钮样式：小巧精致，融入输入行 */
+    .stButton > button {
+        background: transparent !important;
         color: #d4af37 !important;
         border: 1px solid #4a3f21 !important;
-        border-radius: 4px !important;
-        text-align: center;
-    }
-
-    /* 按钮：中间，一排，有力 */
-    .stButton {
-        display: flex;
-        justify-content: center;
-        margin-top: 1rem;
-    }
-    .stButton > button {
-        background-color: rgba(212, 175, 55, 0.1);
-        color: #d4af37;
-        border: 2px solid #d4af37;
-        border-radius: 4px;
-        padding: 1rem 6rem;
-        font-size: 1.5rem;
-        font-weight: 700;
-        letter-spacing: 0.8em;
-        width: 100%;
-        transition: 0.3s;
+        border-radius: 50% !important;
+        width: 45px !important;
+        height: 45px !important;
+        padding: 0 !important;
+        font-size: 1.2rem !important;
+        transition: all 0.3s ease !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        margin-top: 2px !important;
     }
     .stButton > button:hover {
-        background-color: #d4af37;
-        color: #000;
-        box-shadow: 0 0 30px #d4af37;
+        border-color: #d4af37 !important;
+        background: rgba(212, 175, 55, 0.1) !important;
+        box-shadow: 0 0 15px rgba(212,175,55,0.4) !important;
+        transform: scale(1.1);
     }
 
-    /* 卦象卡片：像祭坛上的石头 */
+    /* 语音按钮 placeholder 样式 */
+    .voice-btn {
+        font-size: 1.5rem;
+        color: #8a7b48;
+        cursor: pointer;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 45px;
+        transition: color 0.3s;
+    }
+    .voice-btn:hover {
+        color: #d4af37;
+    }
+
+    /* 卦象结果卡片 */
     .gua-container {
         display: flex;
         justify-content: center;
-        gap: 2rem;
-        margin-top: 2rem;
+        gap: 1.5rem;
+        margin-top: 3rem;
         flex-wrap: wrap;
     }
     .gua-card {
-        background: rgba(30, 30, 30, 0.8);
-        border: 1px solid #4a3f21;
-        padding: 1.5rem;
-        width: 200px;
+        background: rgba(25, 25, 25, 0.9);
+        border: 1px solid rgba(212, 175, 55, 0.15);
+        padding: 2rem;
+        width: 190px;
         text-align: center;
-        border-radius: 8px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        border-radius: 12px;
+        box-shadow: 0 15px 45px rgba(0,0,0,0.7);
+        backdrop-filter: blur(10px);
     }
     .gua-symbol {
-        font-size: 4rem;
-        line-height: 1;
+        font-size: 3.5rem;
+        line-height: 1.1;
         margin: 1rem 0;
         color: #fff;
+        text-shadow: 0 0 10px rgba(255,255,255,0.2);
     }
     .gua-name {
-        font-size: 1.8rem;
+        font-size: 1.6rem;
         font-weight: 700;
         color: #d4af37;
+        margin-bottom: 0.5rem;
     }
 
-    /* 演算文字：主次分明 */
+    /* 演算文字：层次分明 */
     .trace {
-        color: #6a5a2a;
-        font-size: 0.9rem;
+        color: #555;
+        font-size: 0.85rem;
         text-align: center;
-        margin: 1rem 0;
+        margin: 0.8rem 0;
         font-family: monospace;
+        letter-spacing: 0.1em;
     }
     .important {
         color: #d4af37;
         font-weight: 700;
+        opacity: 0.9;
     }
 
     #MainMenu, footer, header { visibility: hidden; }
@@ -134,24 +164,24 @@ cave_css = """
 """
 st.markdown(cave_css, unsafe_allow_html=True)
 
-# 撒梅花
-for _ in range(15):
+# 零星落梅
+for _ in range(12):
     left = random.randint(0, 100)
-    dur = random.randint(5, 15)
-    delay = random.randint(0, 10)
+    dur = random.randint(7, 20)
+    delay = random.randint(0, 15)
     st.markdown(f'<div class="petal" style="left:{left}%; animation-duration:{dur}s; animation-delay:{delay}s;">🌸</div>', unsafe_allow_html=True)
 
-# --- 搬运数据字典 (Cave Data) ---
+# --- 数据字典 ---
 
 BAGUA = {
-    1: {"name": "乾", "symbol": "☰", "lines": [1, 1, 1], "nature": "天"},
-    2: {"name": "兑", "symbol": "☱", "lines": [1, 1, 0], "nature": "泽"},
-    3: {"name": "离", "symbol": "☲", "lines": [1, 0, 1], "nature": "火"},
-    4: {"name": "震", "symbol": "☳", "lines": [1, 0, 0], "nature": "雷"},
-    5: {"name": "巽", "symbol": "☴", "lines": [0, 1, 1], "nature": "风"},
-    6: {"name": "坎", "symbol": "☵", "lines": [0, 1, 0], "nature": "水"},
-    7: {"name": "艮", "symbol": "☶", "lines": [0, 0, 1], "nature": "山"},
-    8: {"name": "坤", "symbol": "☷", "lines": [0, 0, 0], "nature": "地"}
+    1: {"name": "乾", "symbol": "☰", "lines": [1, 1, 1]},
+    2: {"name": "兑", "symbol": "☱", "lines": [1, 1, 0]},
+    3: {"name": "离", "symbol": "☲", "lines": [1, 0, 1]},
+    4: {"name": "震", "symbol": "☳", "lines": [1, 0, 0]},
+    5: {"name": "巽", "symbol": "☴", "lines": [0, 1, 1]},
+    6: {"name": "坎", "symbol": "☵", "lines": [0, 1, 0]},
+    7: {"name": "艮", "symbol": "☶", "lines": [0, 0, 1]},
+    8: {"name": "坤", "symbol": "☷", "lines": [0, 0, 0]}
 }
 
 GUA_64 = {
@@ -168,7 +198,7 @@ GUA_64 = {
 DIZHI_MAP = {"子": 1, "丑": 2, "寅": 3, "卯": 4, "辰": 5, "巳": 6, "午": 7, "未": 8, "申": 9, "酉": 10, "戌": 11, "亥": 12}
 DIZHI_NAMES = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
 
-# --- 石头逻辑 (Cave Logic) ---
+# --- 核心逻辑 ---
 
 def get_shichen_num(hour):
     if hour >= 23 or hour < 1: return 1
@@ -179,84 +209,87 @@ def get_gua_id(lines):
         if v["lines"] == lines: return k
     return 1
 
-# --- 祭坛交互 (UI) ---
+# --- 祭坛交互 ---
 
 st.markdown("<h1>梅 花 易 数</h1>", unsafe_allow_html=True)
+st.markdown('<div class="ritual-hint">请屏息凝神，于心中默念所求之事...</div>', unsafe_allow_html=True)
 
-st.markdown('<div style="text-align: center; color: #8a7b48; margin-bottom: 0.5rem;">屏息凝神，默念心中所求...</div>', unsafe_allow_html=True)
-question = st.text_input("问卜之事", placeholder="在此输入你的疑惑", label_visibility="collapsed")
+# 紧凑输入行：输入框 + 语音 + 确认
+col1, col2, col3 = st.columns([7, 1, 1])
+with col1:
+    question = st.text_input("问卜之事", placeholder="在此输入你的疑惑...", label_visibility="collapsed")
+with col2:
+    st.markdown('<div class="voice-btn" title="语音感应">🎙️</div>', unsafe_allow_html=True)
+with col3:
+    divine_trigger = st.button("⮕", title="感应天机")
 
-if st.button("感 应 天 机"):
+if divine_trigger:
     if not question:
-        st.warning("没写问啥，占不了！")
+        st.toast("「天机未定」：请先输入所求之事。", icon="⚠️")
     else:
-        # 30秒磨石器动画
+        # 30秒深度演算动画
         placeholder = st.empty()
         start = time.time()
-        msgs = ["打磨石器...", "观察星空...", "采集梅花...", "捕捉风声...", "占卜中...", "快好了...", "天意降临！"]
+        msgs = ["📡 正在捕捉四柱波段...", "🌑 正在定位农历星历...", "⚖️ 正在进行二进制位运算...", "👁️ 正在观测平行世界路径...", "🔮 正在提取变卦能量...", "⌛ 正在同步因果链条...", "✨ 神谕即将降临..."]
         while time.time() - start < 30:
-            idx = int((time.time() - start) / 4) % len(msgs)
-            placeholder.markdown(f'<div class="trace" style="font-size: 1.5rem;">{msgs[idx]}</div>', unsafe_allow_html=True)
-            time.sleep(0.5)
+            idx = int((time.time() - start) / 4.3) % len(msgs)
+            placeholder.markdown(f'<div class="trace" style="font-size: 1.4rem; color:#d4af37;">{msgs[idx]}</div>', unsafe_allow_html=True)
+            # 随机矩阵跳变
+            matrix = " ".join([random.choice("0123456789ABCDEF") for _ in range(16)])
+            st.markdown(f'<div style="text-align: center; color: #1a1a1a; font-family: monospace; font-size: 0.6rem;">{matrix}</div>', unsafe_allow_html=True)
+            time.sleep(0.4)
         placeholder.empty()
 
-        # 开始算卦
+        # 演算逻辑
         now = datetime.datetime.now()
         lunar = LunarDate.from_solar_date(now.year, now.month, now.day)
-        
         y_gz = lunar.year_gz[1]
         y_n = DIZHI_MAP[y_gz]
         m_n = lunar.month
         d_n = lunar.day
         h_n = get_shichen_num(now.hour)
 
-        # 梅花公式
         up = (y_n + m_n + d_n) % 8 or 8
         low = (y_n + m_n + d_n + h_n) % 8 or 8
         move = (y_n + m_n + d_n + h_n) % 6 or 6
 
-        # 推演
         orig_name = GUA_64[(up, low)]
         orig_lines = BAGUA[low]["lines"] + BAGUA[up]["lines"]
-        
-        # 互卦
         mut_l = get_gua_id(orig_lines[1:4])
         mut_u = get_gua_id(orig_lines[2:5])
         mut_name = GUA_64[(mut_u, mut_l)]
-        
-        # 变卦
         trans_lines = list(orig_lines)
         trans_lines[move-1] = 1 - trans_lines[move-1]
         trans_l = get_gua_id(trans_lines[0:3])
         trans_u = get_gua_id(trans_lines[3:6])
         trans_name = GUA_64[(trans_u, trans_l)]
 
-        # 展示
-        st.markdown(f'<div class="trace">公历: <span class="important">{now.strftime("%Y-%m-%d %H:%M")}</span> | 农历: <span class="important">{lunar.strftime("%Y-%L%M-%D")}</span> {DIZHI_NAMES[h_n-1]}时</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="trace">演算: 上卦({y_n}+{m_n}+{d_n})%8={up} | 下卦({y_n}+{m_n}+{d_n}+{h_n})%8={low} | 动爻={move}</div>', unsafe_allow_html=True)
+        # 结果展示
+        st.markdown(f'<div class="trace">LOCAL_TIME: <span class="important">{now.strftime("%Y-%m-%d %H:%M")}</span> | LUNAR: <span class="important">{lunar.strftime("%Y-%m-%d")}</span> {DIZHI_NAMES[h_n-1]}时</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="trace">ALGO_TRACE: ({y_n}+{m_n}+{d_n})%8={up} | ({y_n}+{m_n}+{d_n}+{h_n})%8={low} | ({y_n}+{m_n}+{d_n}+{h_n})%6={move}</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="gua-container">', unsafe_allow_html=True)
         for label, name, u_id, l_id in [("本卦", orig_name, up, low), ("互卦", mut_name, mut_u, mut_l), ("变卦", trans_name, trans_u, trans_l)]:
             st.markdown(f"""
             <div class="gua-card">
-                <div style="color: #6a5a2a; font-size: 0.8rem;">{label}</div>
+                <div style="color: #666; font-size: 0.7rem; letter-spacing: 2px;">{label}</div>
                 <div class="gua-name">{name}</div>
                 <div class="gua-symbol">{BAGUA[u_id]["symbol"]}<br>{BAGUA[l_id]["symbol"]}</div>
             </div>
             """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         
-        st.markdown(f'<div style="text-align: center; margin-top: 1rem; color: #d4af37; font-size: 1.2rem;">第 <span style="font-size: 2rem;">{move}</span> 爻动</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="text-align: center; margin-top: 1.5rem; color: #d4af37; font-size: 1.2rem; letter-spacing: 0.2em;">第 <span style="font-size: 2.2rem; font-weight:700;">{move}</span> 爻动</div>', unsafe_allow_html=True)
 
         st.markdown(f"""
-        <div style="background: rgba(20,20,20,0.8); padding: 2rem; margin-top: 2rem; border-radius: 8px; border: 1px solid #4a3f21;">
-            <div style="color: #8a7b48; font-size: 0.9rem; margin-bottom: 0.5rem;">[ 占卜解惑 ]</div>
-            <div style="color: #fff; font-size: 1.1rem; margin-bottom: 1rem;">问：{question}</div>
-            <div style="color: #ccc; line-height: 1.8;">
-                卦象说：从 <span class="important">{orig_name}</span> 开始，经过 <span class="important">{mut_name}</span> 的变化，最后变成 <span class="important">{trans_name}</span>。<br>
-                别急，慢慢来，天意都在花瓣里。
+        <div style="background: rgba(15,15,15,0.9); padding: 2.5rem; margin-top: 2.5rem; border-radius: 12px; border: 1px solid rgba(212,175,55,0.1); max-width: 650px; margin-left: auto; margin-right: auto;">
+            <div style="color: #8a7b48; font-size: 0.8rem; margin-bottom: 0.8rem; letter-spacing: 2px;">[ 占 卜 解 惑 ]</div>
+            <div style="color: #fff; font-size: 1.15rem; margin-bottom: 1.2rem; border-left: 3px solid #d4af37; padding-left: 1rem;">问：{question}</div>
+            <div style="color: #bbb; line-height: 2; font-size: 1rem;">
+                卦象演化：始于 <span class="important">{orig_name}</span>，历经 <span class="important">{mut_name}</span> 之变，终归于 <span class="important">{trans_name}</span>。<br>
+                <span style="color: #8a7b48; font-style: italic;">天意流转，顺势而为。凡事不急于求成，待落梅成阵，自得圆满。</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-st.markdown("<br><br><br><div style='text-align: center; color: #111; font-size: 0.6rem; letter-spacing: 0.5em;'>花开花落，自有定数</div>", unsafe_allow_html=True)
+st.markdown("<br><br><br><div style='text-align: center; color: #111; font-size: 0.6rem; letter-spacing: 0.6em;'>ALGORITHM IS FATE · CODE IS TRUTH</div>", unsafe_allow_html=True)
